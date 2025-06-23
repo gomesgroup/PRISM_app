@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Heatmap</title>
-    <!-- Plotly.js - Using specific version to avoid deprecated latest warning -->
+    <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <!-- RDKit.js for molecular structure rendering -->
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
     <style>
         body {
             margin: 0;
@@ -25,6 +27,62 @@
             font-size: 18px;
             color: #666;
         }
+        
+        /* Molecule tooltip styles */
+        .molecule-tooltip {
+            position: absolute;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            pointer-events: none;
+            max-width: 350px;
+        }
+        
+        .molecule-tooltip .title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .molecule-tooltip .structure {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .molecule-tooltip .structure img {
+            max-width: 280px;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        .molecule-tooltip .smiles {
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+            text-align: center;
+        }
+        
+        .loading-structure {
+            color: #999;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        /* Ensure axis labels can receive mouse events */
+        .xtick text, .ytick text {
+            pointer-events: all !important;
+            cursor: pointer !important;
+        }
+        
+        /* Hover effect for axis labels */
+        .xtick text:hover, .ytick text:hover {
+            fill: #007acc !important;
+            font-weight: bold !important;
+        }
     </style>
 </head>
 <body>
@@ -32,6 +90,171 @@
     <div id="heatmap" style="display: none;"></div>
 
     <script>
+        let RDKit = null;
+        let smilesData = null;
+        let rdkitLoaded = false;
+        let currentTooltip = null;
+        let tooltipTimeout = null;
+        
+        // Initialize RDKit
+        initRDKitModule().then(function(RDKit_module) {
+            RDKit = RDKit_module;
+            rdkitLoaded = true;
+            console.log('RDKit initialized successfully');
+        }).catch(error => {
+            console.error('Error initializing RDKit:', error);
+            console.log('Will use web service fallback for structure rendering');
+        });
+        
+        // Load SMILES data
+        fetch('/api/smiles-data')
+            .then(response => response.json())
+            .then(data => {
+                smilesData = data;
+                console.log('SMILES data loaded:', smilesData);
+            })
+            .catch(error => {
+                console.error('Error loading SMILES data:', error);
+            });
+        
+        // Function to draw molecule structure using RDKit
+        function drawMoleculeRDKit(smiles, width = 300, height = 200) {
+            if (!RDKit || !smiles) return null;
+            
+            try {
+                const mol = RDKit.get_mol(smiles);
+                if (!mol || !mol.is_valid()) {
+                    console.warn('Invalid molecule:', smiles);
+                    return null;
+                }
+                
+                const svg = mol.get_svg(width, height);
+                mol.delete();
+                return svg;
+            } catch (error) {
+                console.error('Error drawing molecule:', error);
+                return null;
+            }
+        }
+        
+        // Function to get molecule image URL using web service
+        function getMoleculeImageUrl(smiles, width = 280, height = 180) {
+            // Using ChemSpider's structure service as fallback
+            const encodedSmiles = encodeURIComponent(smiles);
+            return `https://www.chemspider.com/ImagesHandler.ashx?w=${width}&h=${height}&smiles=${encodedSmiles}`;
+        }
+        
+        // Function to show molecule tooltip
+        function showMoleculeTooltip(event, name, type) {
+            if (!smilesData) return;
+            
+            const smiles = type === 'amine' ? smilesData.amines[name] : smilesData.acids[name];
+            if (!smiles) return;
+            
+            // Clear any existing timeout
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+            
+            // If tooltip already exists for this compound, don't recreate it
+            if (currentTooltip && currentTooltip.dataset.compound === name) {
+                return;
+            }
+            
+            // Remove existing tooltip
+            hideMoleculeTooltip();
+            
+            // Create tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'molecule-tooltip';
+            tooltip.dataset.compound = name; // Store compound name for comparison
+            
+            const title = document.createElement('div');
+            title.className = 'title';
+            title.textContent = name;
+            
+            const structureDiv = document.createElement('div');
+            structureDiv.className = 'structure';
+            
+            const smilesDiv = document.createElement('div');
+            smilesDiv.className = 'smiles';
+            smilesDiv.textContent = `SMILES: ${smiles}`;
+            
+            tooltip.appendChild(title);
+            tooltip.appendChild(structureDiv);
+            tooltip.appendChild(smilesDiv);
+            
+            // Show loading message first
+            structureDiv.innerHTML = '<div class="loading-structure">Loading structure...</div>';
+            
+            // Position tooltip
+            const rect = event.target.getBoundingClientRect();
+            tooltip.style.left = (rect.right + 10) + 'px';
+            tooltip.style.top = (rect.top - 50) + 'px';
+            
+            // Add tooltip to DOM first
+            document.body.appendChild(tooltip);
+            currentTooltip = tooltip;
+            
+            // Adjust position if tooltip would go off screen
+            const tooltipRect = tooltip.getBoundingClientRect();
+            if (tooltipRect.right > window.innerWidth) {
+                tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
+            }
+            if (tooltipRect.bottom > window.innerHeight) {
+                tooltip.style.top = (window.innerHeight - tooltipRect.height - 10) + 'px';
+            }
+            if (tooltipRect.top < 0) {
+                tooltip.style.top = '10px';
+            }
+            
+            // Try to render structure
+            if (rdkitLoaded) {
+                // Use RDKit if available
+                const svg = drawMoleculeRDKit(smiles, 280, 180);
+                if (svg) {
+                    structureDiv.innerHTML = svg;
+                } else {
+                    // Fallback to web service
+                    const img = document.createElement('img');
+                    img.src = getMoleculeImageUrl(smiles);
+                    img.alt = 'Molecular structure';
+                    img.onerror = function() {
+                        structureDiv.innerHTML = '<div class="loading-structure">Structure not available</div>';
+                    };
+                    structureDiv.innerHTML = '';
+                    structureDiv.appendChild(img);
+                }
+            } else {
+                // Use web service fallback
+                const img = document.createElement('img');
+                img.src = getMoleculeImageUrl(smiles);
+                img.alt = 'Molecular structure';
+                img.onerror = function() {
+                    structureDiv.innerHTML = '<div class="loading-structure">Structure not available</div>';
+                };
+                structureDiv.innerHTML = '';
+                structureDiv.appendChild(img);
+            }
+        }
+        
+        // Function to hide molecule tooltip
+        function hideMoleculeTooltip() {
+            if (currentTooltip) {
+                currentTooltip.remove();
+                currentTooltip = null;
+            }
+        }
+        
+        // Function to schedule tooltip hiding with delay
+        function scheduleHideTooltip(delay = 200) {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+            }
+            tooltipTimeout = setTimeout(hideMoleculeTooltip, delay);
+        }
+        
         // Load and display heatmap
         fetch('/api/heatmap-data')
             .then(response => response.json())
@@ -42,7 +265,7 @@
                 // Update layout for full screen
                 plotData.layout.width = null;
                 plotData.layout.height = null;
-                plotData.layout.margin = {l: 150, r: 50, t: 80, b: 100};
+                plotData.layout.margin = {l: 120, r: 200, t: 80, b: 100};
                 
                 // Hide loading and show heatmap
                 document.getElementById('loading').style.display = 'none';
@@ -54,6 +277,139 @@
                     displayModeBar: true,
                     modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d', 'autoScale2d'],
                     displaylogo: false
+                }).then(() => {
+                    // Wait a bit for the plot to fully render
+                    setTimeout(() => {
+                        console.log('Setting up axis label hover listeners...');
+                        
+                        // Add event listeners for axis label hover after plot is created
+                        const heatmapDiv = document.getElementById('heatmap');
+                        
+                        // Debug: Log the structure
+                        console.log('Heatmap div children:', heatmapDiv.children);
+                        const svgElement = heatmapDiv.querySelector('svg');
+                        if (svgElement) {
+                            console.log('Found SVG element');
+                            const xticks = svgElement.querySelectorAll('.xtick');
+                            const yticks = svgElement.querySelectorAll('.ytick');
+                            console.log('Found xticks:', xticks.length, 'yticks:', yticks.length);
+                        }
+                        
+                        // Function to find text content of axis labels
+                        function getAxisLabel(element) {
+                            // Check if element is text or contains text
+                            if (element.tagName === 'text') {
+                                return element.textContent.trim();
+                            }
+                            
+                            // Look for text element within the element
+                            const textElement = element.querySelector('text');
+                            if (textElement) {
+                                return textElement.textContent.trim();
+                            }
+                            
+                            return null;
+                        }
+                        
+                        // Use a more comprehensive approach to detect axis labels
+                        heatmapDiv.addEventListener('mouseover', function(event) {
+                            console.log('Mouseover event on:', event.target.tagName, event.target.className);
+                            
+                            const target = event.target;
+                            let labelText = null;
+                            let labelType = null;
+                            
+                            // Check if this is an x-axis label (amine)
+                            if (target.closest('.xtick') || target.closest('.xaxislayer-above')) {
+                                labelText = target.textContent || target.innerText;
+                                labelType = 'amine';
+                            }
+                            // Check if this is a y-axis label (acid)
+                            else if (target.closest('.ytick') || target.closest('.yaxislayer-above')) {
+                                labelText = target.textContent || target.innerText;
+                                labelType = 'acid';
+                            }
+                            // Alternative check using plotly's axis structure
+                            else if (target.tagName === 'text') {
+                                const parent = target.parentNode;
+                                if (parent && parent.classList) {
+                                    if (parent.classList.contains('xtick')) {
+                                        labelText = target.textContent;
+                                        labelType = 'amine';
+                                    } else if (parent.classList.contains('ytick')) {
+                                        labelText = target.textContent;
+                                        labelType = 'acid';
+                                    }
+                                }
+                            }
+                            
+                            if (labelText && labelType && labelText.trim()) {
+                                console.log('Hovering over:', labelText, 'Type:', labelType);
+                                event.target.style.cursor = 'pointer';
+                                showMoleculeTooltip(event, labelText.trim(), labelType);
+                            }
+                        });
+                        
+                        heatmapDiv.addEventListener('mouseout', function(event) {
+                            const target = event.target;
+                            
+                            // Hide tooltip when leaving axis areas
+                            if (target.closest('.xtick') || target.closest('.ytick') || 
+                                target.closest('.xaxislayer-above') || target.closest('.yaxislayer-above') ||
+                                target.tagName === 'text') {
+                                target.style.cursor = 'default';
+                                scheduleHideTooltip(200);
+                            }
+                        });
+                        
+                        // Alternative approach: directly add listeners to all text elements
+                        const allTextElements = heatmapDiv.querySelectorAll('text');
+                        console.log('Found text elements:', allTextElements.length);
+                        
+                        allTextElements.forEach((textElement, index) => {
+                            // Check if this text element is part of axis labels
+                            const parent = textElement.parentNode;
+                            if (parent && parent.classList) {
+                                let isAxisLabel = false;
+                                let labelType = null;
+                                
+                                if (parent.classList.contains('xtick')) {
+                                    isAxisLabel = true;
+                                    labelType = 'amine';
+                                } else if (parent.classList.contains('ytick')) {
+                                    isAxisLabel = true;
+                                    labelType = 'acid';
+                                }
+                                
+                                if (isAxisLabel) {
+                                    console.log(`Adding direct listener to ${labelType} label:`, textElement.textContent);
+                                    
+                                    textElement.addEventListener('mouseenter', function(event) {
+                                        console.log('✓ Direct hover TRIGGERED on:', textElement.textContent, 'Type:', labelType);
+                                        textElement.style.cursor = 'pointer';
+                                        textElement.style.fill = '#007acc';
+                                        textElement.style.fontWeight = 'bold';
+                                        showMoleculeTooltip(event, textElement.textContent.trim(), labelType);
+                                    });
+                                    
+                                    textElement.addEventListener('mouseleave', function(event) {
+                                        console.log('✓ Direct hover LEAVE on:', textElement.textContent);
+                                        textElement.style.cursor = 'default';
+                                        textElement.style.fill = '';
+                                        textElement.style.fontWeight = '';
+                                        scheduleHideTooltip(200);
+                                    });
+                                    
+                                    // Also add click event for testing
+                                    textElement.addEventListener('click', function(event) {
+                                        console.log('✓ CLICK detected on:', textElement.textContent, 'Type:', labelType);
+                                        alert(`Clicked on ${labelType}: ${textElement.textContent}`);
+                                    });
+                                }
+                            }
+                        });
+                        
+                    }, 1000); // Wait 1 second for plot to fully render
                 });
             })
             .catch(error => {

@@ -12,6 +12,21 @@ def load_data():
     df = pd.read_csv('data/sorted_final_rates.csv', index_col=0)
     return df
 
+def load_smiles_data():
+    """Load SMILES data for both amines and acids"""
+    try:
+        amines_df = pd.read_csv('data/amines_smiles.csv')
+        acids_df = pd.read_csv('data/acids_smiles.csv')
+        
+        # Create dictionaries for easy lookup
+        amines_smiles = dict(zip(amines_df['index'], amines_df['amine_smiles']))
+        acids_smiles = dict(zip(acids_df['index'], acids_df['acid_smiles']))
+        
+        return amines_smiles, acids_smiles
+    except Exception as e:
+        print(f"Error loading SMILES data: {e}")
+        return {}, {}
+
 @app.route('/')
 def index():
     """Main page with the heatmap"""
@@ -82,8 +97,8 @@ def get_heatmap_data():
                 tickmode='array',
                 tickvals=transformed_ticks,
                 ticktext=[str(int(t)) if t >= 10 else f"{t:.1f}" for t in valid_ticks],
-                x=0.75,  # Position right next to the heatmap
-                xanchor='left'
+                x=-0.1,  # Position on the left side
+                xanchor='right'
             ),
             # Add grid lines like in the notebook
             xgap=1,
@@ -109,14 +124,15 @@ def get_heatmap_data():
                 autorange='reversed',
                 scaleanchor='x',
                 scaleratio=1,
-                constrain='domain'
+                constrain='domain',
+                side='right'
             ),
             # Calculate dimensions for square cells with tighter margins
             # 30 rows (acid chlorides) × 34 columns (amines)
             # Base cell size of 20 pixels
-            width=34 * 20 + 200 + 120,  # columns * cell_size + left_margin + colorbar_space
+            width=34 * 20 + 120 + 200 + 50,  # columns * cell_size + colorbar_space + right_margin + buffer
             height=30 * 20 + 100 + 150,  # rows * cell_size + top_margin + bottom_margin
-            margin=dict(l=200, r=20, t=100, b=150)
+            margin=dict(l=120, r=200, t=100, b=150)
         )
         
         # Convert to JSON
@@ -140,6 +156,18 @@ def get_data_info():
             'mean_value': float(df.mean().mean())
         }
         return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/smiles-data')
+def get_smiles_data():
+    """API endpoint to get SMILES data for both amines and acids"""
+    try:
+        amines_smiles, acids_smiles = load_smiles_data()
+        return jsonify({
+            'amines': amines_smiles,
+            'acids': acids_smiles
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -1,0 +1,32 @@
+index,acid_smiles
+4-fluorobenzoyl chloride-average,ClC(c1ccc(F)cc1)=O
+benzoyl chloride,ClC(=O)c1ccccc1
+4-tertbutyl benzoyl chloride,CC(C)(C)c1ccc(cc1)C(Cl)=O
+"2,4-difluorobenzoyl chloride",Fc1ccc(c(F)c1)C(Cl)=O
+4-trifluoromethylbenzoyl chloride,FC(F)(F)c1ccc(cc1)C(Cl)=O
+4-phenylbenzoyl chloride,ClC(=O)c1ccc(cc1)c2ccccc2
+thiophene-2-carbonyl chloride,ClC(=O)c1sccc1
+2-naphthoyl chloride,ClC(=O)c1ccc2ccccc2c1
+p-anisoyl chloride,COc1ccc(cc1)C(Cl)=O
+pivaloyl chloride,CC(C)(C)C(Cl)=O
+valeroyl chloride,CCCCC(Cl)=O
+4-chloro benzoyl chloride,ClC(=O)c1ccc(Cl)cc1
+heptanoyl chloride,CCCCCCC(Cl)=O
+acetyl chloride,CC(Cl)=O
+4-trifluoromethoxybenzoyl chloride,FC(F)(F)Oc1ccc(cc1)C(Cl)=O
+1-naphthoyl chloride,ClC(=O)c1cccc2ccccc12
+4-(trifluoromethylthio)benzoyl chloride,FC(F)(F)Sc1ccc(cc1)C(Cl)=O
+p-toluoyl chloride,Cc1ccc(cc1)C(Cl)=O
+"2,4-dichlorobenzoyl chloride",ClC(=O)c1ccc(Cl)cc1Cl
+2-furuoyl chloride,ClC(=O)c1occc1
+2-phenylbutyryl chloride,CCC(C(Cl)=O)c1ccccc1
+2-ethylhexanoyl chloride,CCCCC(CC)C(Cl)=O
+2-methylbenzoyl chloride,Cc1ccccc1C(Cl)=O
+4-ethylbenzoyl chloride,CCc1ccc(cc1)C(Cl)=O
+dodecanoyl chloride,CCCCCCCCCCCC(Cl)=O
+isobutyryl chloride,CC(C)C(Cl)=O
+cinnamoyl chloride,ClC(C=Cc1ccccc1)=O
+4-bromobenzoyl chloride,ClC(=O)c1ccc(Br)cc1
+"3,4,5-trimethoxybenzoyl chloride",COc1cc(cc(OC)c1OC)C(Cl)=O
+4-nitrobenzoyl chloride,[O-][N+](=O)c1ccc(cc1)C(Cl)=O
+1-adamantanecarbonyl chloride,ClC(=O)C12CC3CC(CC(C3)C1)C2
