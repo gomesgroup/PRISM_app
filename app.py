@@ -91,15 +91,7 @@ def get_heatmap_data():
                          '<b>Rate:</b> %{customdata:.2f} (1/M·min)<br>' +
                          '<extra></extra>',
             customdata=z_data,  # Use original data for hover
-            showscale=True,
-            colorbar=dict(
-                title="Rate (1/M·min)",
-                tickmode='array',
-                tickvals=transformed_ticks,
-                ticktext=[str(int(t)) if t >= 10 else f"{t:.1f}" for t in valid_ticks],
-                x=-0.1,  # Position on the left side
-                xanchor='right'
-            ),
+            showscale=False,  # Hide the colorbar/scale
             # Add grid lines like in the notebook
             xgap=1,
             ygap=1
@@ -107,19 +99,12 @@ def get_heatmap_data():
         
         # Update layout for square heatmap
         fig.update_layout(
-            title={
-                'text': 'Rate of Amide Bond Formation at Room Temperature',
-                'x': 0.5,
-                'xanchor': 'center'
-            },
             xaxis=dict(
-                title='Amines',
                 tickangle=45,
                 side='bottom',
                 constrain='domain'
             ),
             yaxis=dict(
-                title='Acid Chlorides',
                 tickmode='linear',
                 autorange='reversed',
                 scaleanchor='x',
@@ -127,12 +112,12 @@ def get_heatmap_data():
                 constrain='domain',
                 side='right'
             ),
-            # Calculate dimensions for square cells with tighter margins
-            # 30 rows (acid chlorides) × 34 columns (amines)
-            # Base cell size of 20 pixels
-            width=34 * 20 + 120 + 200 + 50,  # columns * cell_size + colorbar_space + right_margin + buffer
-            height=30 * 20 + 100 + 150,  # rows * cell_size + top_margin + bottom_margin
-            margin=dict(l=120, r=200, t=100, b=150)
+            # Calculate dimensions for square cells - 125% larger
+            # 30 rows (acid chlorides) × 34 columns (amines)  
+            # Base cell size of 25 pixels (125% of 20px)
+            width=34 * 30 + 100 + 30 + 70,  # Larger for better detail
+            height=30 * 30 + 35 + 60,  # Larger for better detail
+            margin=dict(l=100, r=30, t=8, b=30)
         )
         
         # Convert to JSON
