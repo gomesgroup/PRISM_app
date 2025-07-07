@@ -199,39 +199,52 @@
             background: transparent;
             width: 100vw; /* Use full viewport width */
             overflow-x: hidden;   /* Disable horizontal scrolling */
-            display: flex;
-            justify-content: flex-start; /* Start from left */
-            align-items: flex-start;
+            display: grid;
+            grid-template-columns: 440px 1fr 20px; /* Sidebar area (540px - 100px overlap), heatmap space, right margin */
+            grid-template-areas: "sidebar heatmap .";
+            align-items: start;
             box-sizing: border-box;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 400px;
+            grid-area: sidebar;
+            width: 500px;
             height: 600px;
             background: white;
             border: 2px solid black;
             border-radius: 12px;
-            margin-left: 20px;
-            margin-right: 15px;
-            flex-shrink: 0; /* Don't shrink the sidebar */
+            margin-left: 20px; /* Keep original positioning within grid area */
+            justify-self: start;
+            position: relative; /* Needed for pseudo-element positioning */
+        }
+
+        /* Sidebar shadow effect */
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 10px;    /* Offset 10px down */
+            left: 10px;   /* Offset 10px to the right */
+            width: 500px;
+            height: 600px;
+            background-color: #C0C0C0;
+            border-radius: 12px;
+            z-index: -1;  /* Behind the sidebar */
         }
 
         /* Heatmap Wrapper */
         .heatmap-wrapper {
+            grid-area: heatmap;
             position: relative;
-            flex-shrink: 0;
-            margin-left: auto; /* Push heatmap to the right */
-            margin-right: 20px; /* Keep some margin from edge */
+            justify-self: start;
         }
 
         #heatmap {
-            width: calc(100vw - 455px);  /* Viewport width minus sidebar and margins */
+            width: calc(100vw - 460px);  /* Viewport width minus sidebar area and right margin */
             height: 830px;   /* Fixed height for larger heatmap */
             margin: 0;
             max-width: 1020px; /* Maximum size */
             min-width: 600px;  /* Minimum usable size */
-            flex-shrink: 0; /* Don't shrink the heatmap */
         }
         
         .loading {
@@ -253,34 +266,35 @@
             position: absolute;
             background: white;
             border: 2px solid #333;
-            border-radius: 6px;
-            padding: 6px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 4px;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             z-index: 1000;
             pointer-events: none;
-            max-width: 200px;
+            max-width: 140px;
         }
         
         .molecule-tooltip .title {
             font-weight: bold;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             color: #333;
             text-align: center;
+            font-size: 12px;
         }
         
         .molecule-tooltip .structure {
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
         
         .molecule-tooltip .structure img {
-            max-width: 180px;
+            max-width: 120px;
             height: auto;
-            border-radius: 4px;
+            border-radius: 3px;
         }
         
         .molecule-tooltip .smiles {
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
             word-break: break-all;
             text-align: center;
@@ -288,9 +302,19 @@
         
         .loading-structure {
             color: #999;
-            padding: 10px;
+            padding: 6px;
             text-align: center;
-            font-size: 12px;
+            font-size: 10px;
+        }
+
+        /* Heatmap highlight overlays */
+        .highlight-overlay {
+            position: absolute;
+            pointer-events: none;
+            border: 3px solid white;
+            box-sizing: border-box;
+            z-index: 100;
+            opacity: 0.8;
         }
         
         /* Ensure axis labels can receive mouse events */
@@ -353,11 +377,18 @@
                 padding: 0px;
                 width: 100vw;
                 overflow-x: hidden;
-                display: flex;
-                justify-content: flex-start;
+                display: grid;
+                grid-template-columns: 340px 1fr 20px; /* Smaller sidebar area for small laptops */
+                grid-template-areas: "sidebar heatmap .";
+                align-items: start;
             }
 
             .sidebar {
+                width: 300px;
+                height: 500px;
+            }
+
+            .sidebar::before {
                 width: 300px;
                 height: 500px;
             }
@@ -416,24 +447,30 @@
                 padding: 0px;
                 width: 100vw;
                 overflow-x: hidden;
-                display: flex;
-                flex-direction: column; /* Stack sidebar and heatmap on mobile */
-                align-items: center;
+                display: grid;
+                grid-template-columns: 1fr; /* Single column for mobile */
+                grid-template-areas: 
+                    "sidebar"
+                    "heatmap";
+                justify-items: center;
+                gap: 20px;
             }
 
             .sidebar {
                 width: 90%;
                 height: 200px;
-                margin-bottom: 20px;
-                margin-left: 0;
-                margin-right: 0;
+                margin-left: 0; /* Reset margins for mobile grid */
+                justify-self: center;
+            }
+
+            .sidebar::before {
+                width: 90%;
+                height: 200px;
             }
 
             .heatmap-wrapper {
                 width: 100%;
-                display: flex;
-                justify-content: center;
-                margin-left: 0; /* Reset margin for mobile */
+                justify-self: center;
             }
 
             #heatmap {
@@ -485,8 +522,8 @@
             <!-- Sidebar content will go here -->
         </div>
         <div class="heatmap-wrapper">
-            <div id="loading" class="loading">Loading heatmap...</div>
-            <div id="heatmap" style="display: none;"></div>
+    <div id="loading" class="loading">Loading heatmap...</div>
+    <div id="heatmap" style="display: none;"></div>
         </div>
     </div>
 
@@ -714,6 +751,11 @@
         let currentTooltip = null;
         let tooltipTimeout = null;
         
+        // Heatmap highlighting functionality
+        let currentHighlights = [];
+        let heatmapData = null;
+        let heatmapLabels = { x: [], y: [] };
+        
         // Initialize RDKit
         initRDKitModule().then(function(RDKit_module) {
             RDKit = RDKit_module;
@@ -736,7 +778,7 @@
             });
         
         // Function to draw molecule structure using RDKit
-        function drawMoleculeRDKit(smiles, width = 180, height = 120) {
+        function drawMoleculeRDKit(smiles, width = 120, height = 80) {
             if (!RDKit || !smiles) return null;
             
             try {
@@ -791,25 +833,35 @@
             structureDiv.innerHTML = '<div class="loading-structure">Loading structure...</div>';
             
             const rect = event.target.getBoundingClientRect();
-            tooltip.style.left = (rect.right + 10) + 'px';
-            tooltip.style.top = (rect.top - 50) + 'px';
+            
+            // ===========================================
+            // MANUAL TUNING POINTS FOR TOOLTIP POSITION
+            // ===========================================
+            
+            if (type === 'amine') {
+                // HORIZONTAL AXIS (bottom labels) - Tooltip appears above
+                const HORIZONTAL_OFFSET = -150;  // ← TUNE: pixels right of label
+                const VERTICAL_OFFSET = -115;  // ← TUNE: pixels above label (negative = above)
+                
+                tooltip.style.left = (rect.left + HORIZONTAL_OFFSET) + 'px';
+                tooltip.style.top = (rect.top + VERTICAL_OFFSET) + 'px';
+                
+            } else if (type === 'acid') {
+                // VERTICAL AXIS (left labels) - Tooltip appears to the right
+                const HORIZONTAL_OFFSET = 50;  // ← TUNE: pixels right of label
+                const VERTICAL_OFFSET = -100;   // ← TUNE: pixels above/below label
+                
+                tooltip.style.left = (rect.left + HORIZONTAL_OFFSET) + 'px';
+                tooltip.style.top = (rect.top + VERTICAL_OFFSET) + 'px';
+            }
             
             document.body.appendChild(tooltip);
             currentTooltip = tooltip;
             
-            const tooltipRect = tooltip.getBoundingClientRect();
-            if (tooltipRect.right > window.innerWidth) {
-                tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
-            }
-            if (tooltipRect.bottom > window.innerHeight) {
-                tooltip.style.top = (window.innerHeight - tooltipRect.height - 10) + 'px';
-            }
-            if (tooltipRect.top < 0) {
-                tooltip.style.top = '10px';
-            }
+            // No edge protection - simple positioning only
             
             if (rdkitLoaded) {
-                const svg = drawMoleculeRDKit(smiles, 180, 120);
+                const svg = drawMoleculeRDKit(smiles, 120, 80);
                 if (svg) {
                     structureDiv.innerHTML = svg;
                 } else {
@@ -846,6 +898,234 @@
                 clearTimeout(tooltipTimeout);
             }
             tooltipTimeout = setTimeout(hideMoleculeTooltip, delay);
+        }
+
+        // Heatmap highlighting functions
+        function getHeatmapGridDimensions() {
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return null;
+            
+            console.log('Debugging heatmap structure...');
+            
+            // Method 1: Try to find actual heatmap cells (rectangles in SVG)
+            const heatmapCells = heatmapDiv.querySelectorAll('g.heatmaplayer rect');
+            if (heatmapCells.length > 0) {
+                console.log('Found heatmap cells:', heatmapCells.length);
+                const firstCell = heatmapCells[0].getBoundingClientRect();
+                const lastCell = heatmapCells[heatmapCells.length - 1].getBoundingClientRect();
+                
+                // Calculate grid bounds from actual cells
+                const gridLeft = firstCell.left;
+                const gridTop = firstCell.top;
+                const gridRight = lastCell.right;
+                const gridBottom = lastCell.bottom;
+                
+                return {
+                    rect: {
+                        left: gridLeft,
+                        top: gridTop,
+                        width: gridRight - gridLeft,
+                        height: gridBottom - gridTop
+                    },
+                    gridWidth: gridRight - gridLeft,
+                    gridHeight: gridBottom - gridTop
+                };
+            }
+            
+            // Method 2: Try to find the heatmap layer with class 'hm'
+            const heatmapLayer = heatmapDiv.querySelector('g.heatmaplayer');
+            if (heatmapLayer) {
+                console.log('Found heatmaplayer');
+                const heatmapRect = heatmapLayer.getBoundingClientRect();
+                return {
+                    rect: heatmapRect,
+                    gridWidth: heatmapRect.width,
+                    gridHeight: heatmapRect.height
+                };
+            }
+            
+            // Method 3: Try to find the plot area more specifically
+            const plotArea = heatmapDiv.querySelector('.plot-container .plotly .main-svg');
+            if (plotArea) {
+                console.log('Found main SVG');
+                const plotRect = plotArea.getBoundingClientRect();
+                // Look for the actual data area within this
+                const cartesian = plotArea.querySelector('g.cartesianlayer');
+                if (cartesian) {
+                    const cartesianRect = cartesian.getBoundingClientRect();
+                    return {
+                        rect: cartesianRect,
+                        gridWidth: cartesianRect.width * 0.7, // Estimate data area
+                        gridHeight: cartesianRect.height * 0.85
+                    };
+                }
+            }
+            
+            console.log('Falling back to estimates');
+            // Method 4: Fallback
+            const plotContainer = heatmapDiv.querySelector('.plot-container');
+            if (plotContainer) {
+                const plotRect = plotContainer.getBoundingClientRect();
+                return {
+                    rect: plotRect,
+                    gridWidth: plotRect.width - 130,
+                    gridHeight: plotRect.height - 40
+                };
+            }
+            
+            return null;
+        }
+
+        function showHighlight(labelText, labelType) {
+            hideHighlight(); // Clear any existing highlights
+            
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return;
+            
+            const gridInfo = getHeatmapGridDimensions();
+            if (!gridInfo) return;
+            
+            const heatmapRect = heatmapDiv.getBoundingClientRect();
+            
+            // Find the index of the label
+            let labelIndex = -1;
+            if (labelType === 'amine') {
+                labelIndex = heatmapLabels.x.indexOf(labelText);
+            } else if (labelType === 'acid') {
+                labelIndex = heatmapLabels.y.indexOf(labelText);
+            }
+            
+            if (labelIndex === -1) return;
+            
+            // Calculate precise cell dimensions
+            const numRows = heatmapLabels.y.length;
+            const numCols = heatmapLabels.x.length;
+            
+            if (numRows === 0 || numCols === 0) return;
+            
+            // Precise cell dimensions from actual grid
+            const cellWidth = gridInfo.gridWidth / numCols;
+            const cellHeight = gridInfo.gridHeight / numRows;
+            
+            // Calculate grid start position relative to heatmap container
+            const gridStartX = gridInfo.rect.left - heatmapRect.left;
+            const gridStartY = gridInfo.rect.top - heatmapRect.top;
+            
+            console.log('Grid dimensions:', {
+                gridWidth: gridInfo.gridWidth,
+                gridHeight: gridInfo.gridHeight,
+                startX: gridStartX,
+                startY: gridStartY,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                numRows: numRows,
+                numCols: numCols
+            });
+            
+            if (labelType === 'amine') {
+                // Highlight entire column with one rectangle
+                const overlay = document.createElement('div');
+                overlay.className = 'highlight-overlay';
+                overlay.style.left = (gridStartX + labelIndex * cellWidth) + 'px';
+                overlay.style.top = gridStartY + 'px';
+                overlay.style.width = cellWidth + 'px';
+                overlay.style.height = gridInfo.gridHeight + 'px';
+                
+                console.log(`Column ${labelIndex} highlight:`, {
+                    left: gridStartX + labelIndex * cellWidth,
+                    top: gridStartY,
+                    width: cellWidth,
+                    height: gridInfo.gridHeight
+                });
+                
+                heatmapDiv.appendChild(overlay);
+                currentHighlights.push(overlay);
+            } else if (labelType === 'acid') {
+                // Highlight entire row with one rectangle
+                const overlay = document.createElement('div');
+                overlay.className = 'highlight-overlay';
+                overlay.style.left = gridStartX + 'px';
+                overlay.style.top = (gridStartY + labelIndex * cellHeight) + 'px';
+                overlay.style.width = gridInfo.gridWidth + 'px';
+                overlay.style.height = cellHeight + 'px';
+                
+                console.log(`Row ${labelIndex} highlight:`, {
+                    left: gridStartX,
+                    top: gridStartY + labelIndex * cellHeight,
+                    width: gridInfo.gridWidth,
+                    height: cellHeight
+                });
+                
+                heatmapDiv.appendChild(overlay);
+                currentHighlights.push(overlay);
+            }
+        }
+        
+        function hideHighlight() {
+            currentHighlights.forEach(overlay => overlay.remove());
+            currentHighlights = [];
+        }
+
+        // Function to highlight both row and column for a specific cell
+        function showCellHighlight(colValue, rowValue) {
+            hideHighlight(); // Clear any existing highlights
+            
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return;
+            
+            const gridInfo = getHeatmapGridDimensions();
+            if (!gridInfo) return;
+            
+            const heatmapRect = heatmapDiv.getBoundingClientRect();
+            
+            // Convert values to indices (Plotly gives us actual data values, not indices)
+            const colIndex = heatmapLabels.x.indexOf(colValue);
+            const rowIndex = heatmapLabels.y.indexOf(rowValue);
+            
+            if (colIndex === -1 || rowIndex === -1) {
+                console.log('Could not find indices for:', { colValue, rowValue });
+                return;
+            }
+            
+            // Calculate precise cell dimensions
+            const numRows = heatmapLabels.y.length;
+            const numCols = heatmapLabels.x.length;
+            
+            if (numRows === 0 || numCols === 0) return;
+            
+            // Precise cell dimensions from actual grid
+            const cellWidth = gridInfo.gridWidth / numCols;
+            const cellHeight = gridInfo.gridHeight / numRows;
+            
+            // Calculate grid start position relative to heatmap container
+            const gridStartX = gridInfo.rect.left - heatmapRect.left;
+            const gridStartY = gridInfo.rect.top - heatmapRect.top;
+            
+            // Create column highlight (vertical)
+            const columnOverlay = document.createElement('div');
+            columnOverlay.className = 'highlight-overlay';
+            columnOverlay.style.left = (gridStartX + colIndex * cellWidth) + 'px';
+            columnOverlay.style.top = gridStartY + 'px';
+            columnOverlay.style.width = cellWidth + 'px';
+            columnOverlay.style.height = gridInfo.gridHeight + 'px';
+            
+            // Create row highlight (horizontal)
+            const rowOverlay = document.createElement('div');
+            rowOverlay.className = 'highlight-overlay';
+            rowOverlay.style.left = gridStartX + 'px';
+            rowOverlay.style.top = (gridStartY + rowIndex * cellHeight) + 'px';
+            rowOverlay.style.width = gridInfo.gridWidth + 'px';
+            rowOverlay.style.height = cellHeight + 'px';
+            
+            // Add both overlays
+            heatmapDiv.appendChild(columnOverlay);
+            heatmapDiv.appendChild(rowOverlay);
+            currentHighlights.push(columnOverlay, rowOverlay);
+            
+            console.log(`Cell (${colIndex}, ${rowIndex}) highlight for (${colValue}, ${rowValue}):`, {
+                column: { left: gridStartX + colIndex * cellWidth, width: cellWidth },
+                row: { top: gridStartY + rowIndex * cellHeight, height: cellHeight }
+            });
         }
 
         // Initialize Game of Life
@@ -893,6 +1173,15 @@
                 plotData.layout.paper_bgcolor = 'rgba(0,0,0,0)';
                 plotData.layout.plot_bgcolor = 'rgba(0,0,0,0)';
                 
+                // Store heatmap data and labels for highlighting
+                heatmapData = plotData.data[0];
+                heatmapLabels.x = heatmapData.x || [];
+                heatmapLabels.y = heatmapData.y || [];
+                
+                // Disable cell tooltips - we only want our highlighting effect
+                plotData.data[0].hovertemplate = '';
+                plotData.data[0].hoverinfo = 'none';
+                
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('heatmap').style.display = 'block';
                 
@@ -900,6 +1189,30 @@
                     responsive: true,
                     displayModeBar: false,
                     displaylogo: false
+                }).then(() => {
+                    
+                    // Add cell hover highlighting using Plotly events
+                    const heatmapDiv = document.getElementById('heatmap');
+                    
+                    // When hovering over a cell
+                    heatmapDiv.on('plotly_hover', function(data) {
+                        if (data.points && data.points.length > 0) {
+                            const point = data.points[0];
+                            const colValue = point.x; // Column value (amine name)
+                            const rowValue = point.y; // Row value (acid name)
+                            
+                            console.log('Cell hover:', { colValue, rowValue });
+                            
+                            // Highlight both row and column simultaneously
+                            showCellHighlight(colValue, rowValue);
+                        }
+                    });
+                    
+                    // When leaving a cell
+                    heatmapDiv.on('plotly_unhover', function(data) {
+                        hideHighlight();
+                    });
+                    
                 }).then(() => {
                     setTimeout(() => {
                         console.log('Setting up axis label hover listeners...');
@@ -935,6 +1248,7 @@
                             if (labelText && labelType && labelText.trim()) {
                                 event.target.style.cursor = 'pointer';
                                 showMoleculeTooltip(event, labelText.trim(), labelType);
+                                showHighlight(labelText.trim(), labelType);
                             }
                         });
                         
@@ -946,6 +1260,7 @@
                                 target.tagName === 'text') {
                                 target.style.cursor = 'default';
                                 scheduleHideTooltip(200);
+                                hideHighlight();
                             }
                         });
                         
@@ -971,6 +1286,7 @@
                                         textElement.style.fill = '#007acc';
                                         textElement.style.fontWeight = 'bold';
                                         showMoleculeTooltip(event, textElement.textContent.trim(), labelType);
+                                        showHighlight(textElement.textContent.trim(), labelType);
                                     });
                                     
                                     textElement.addEventListener('mouseleave', function(event) {
@@ -978,6 +1294,7 @@
                                         textElement.style.fill = '';
                                         textElement.style.fontWeight = '';
                                         scheduleHideTooltip(200);
+                                        hideHighlight();
                                     });
                                 }
                             }
