@@ -93,6 +93,7 @@
             .sidebar {
                 width: 500px;
                 height: 700px;
+                box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
             #heatmap {
@@ -118,7 +119,7 @@
             .scalebar {
                 width: 500px; /* Match larger sidebar width exactly */
                 height: 140px; /* Increased height to accommodate ticks below */
-                top: 745px; /* Position below larger sidebar (700px height + 20px margin + 25px gap) */
+                top: 695px; /* Moved up from 745px */
             }
 
             .scalebar-container {
@@ -234,14 +235,13 @@
             width: 500px;
             height: 600px;
             background: white;
-            border: 2px solid black;
-            border-radius: 12px;
-            margin-left: 20px; /* Keep original positioning within grid area */
+            border-radius: 7px;
+            margin: 6px 0 0 20px; /* Add top margin for shadow space */
             justify-self: start;
             position: relative; /* Needed for pseudo-element positioning */
             padding: 20px;
             box-sizing: border-box;
-            overflow: hidden;
+            box-shadow: 0 0 5px 1px #C0C0C0;
         }
 
         /* Sidebar Content */
@@ -386,17 +386,9 @@
             flex: 1;
         }
 
-        /* Sidebar shadow effect */
+        /* Remove shadow pseudo-element (using direct box-shadow now) */
         .sidebar::before {
-            content: '';
-            position: absolute;
-            top: 10px;    /* Offset 10px down */
-            left: 10px;   /* Offset 10px to the right */
-            width: 500px;
-            height: 600px;
-            background-color: #C0C0C0;
-            border-radius: 12px;
-            z-index: -1;  /* Behind the sidebar */
+            display: none;
         }
 
         /* Heatmap Wrapper */
@@ -404,6 +396,7 @@
             grid-area: heatmap;
             position: relative;
             justify-self: start;
+            margin-top: -20px; /* ← TUNE THIS: Negative values move heatmap up */
         }
 
         #heatmap {
@@ -417,10 +410,10 @@
         /* Scalebar */
         .scalebar {
             position: absolute;
-            width: 500px; /* Match sidebar width exactly */
+            width: 520px; /* Match sidebar width exactly */
             height: 130px; /* Increased height to accommodate ticks below */
-            left: 20px; /* Align with sidebar */
-            top: 640px; /* Position below sidebar (600px height + 20px margin + 20px gap) */
+            left: 10px; /* Align with sidebar */
+            top: 620px; /* Moved up from 640px */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -450,7 +443,29 @@
             font-size: 0.9rem;
             font-weight: 600;
             color: #333;
-            margin-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        .scalebar-indicator {
+            position: absolute;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background-color: white;
+            z-index: 70;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .scalebar-selected-indicator {
+            position: absolute;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            z-index: 75;
+            opacity: 1;
+            pointer-events: none;
         }
         
         .loading {
@@ -471,10 +486,9 @@
         .molecule-tooltip {
             position: absolute;
             background: white;
-            border: 2px solid #333;
-            border-radius: 4px;
+            border-radius: 5px;
             padding: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 0 5px 1px #C0C0C0;
             z-index: 1000;
             pointer-events: none;
             max-width: 140px;
@@ -603,6 +617,7 @@
                 width: 300px;
                 height: 500px;
                 padding: 15px;
+                box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
             .molecule-container {
@@ -623,7 +638,7 @@
             .scalebar {
                 width: 300px; /* Match smaller sidebar width exactly */
                 height: 120px; /* Increased height to accommodate ticks below */
-                top: 530px; /* Position below smaller sidebar (500px height + 15px margin + 15px gap) */
+                top: 480px; /* Moved up from 530px */
             }
 
             .scalebar-container {
@@ -632,8 +647,7 @@
             }
 
             .sidebar::before {
-                width: 300px;
-                height: 500px;
+                display: none;
             }
 
             #heatmap {
@@ -705,6 +719,7 @@
                 margin-left: 0; /* Reset margins for mobile grid */
                 justify-self: center;
                 padding: 10px;
+                box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
             .reaction-grid {
@@ -761,8 +776,7 @@
             }
 
             .sidebar::before {
-                width: 90%;
-                height: 200px;
+                display: none;
             }
 
             .heatmap-wrapper {
@@ -831,10 +845,11 @@
     <div id="heatmap" style="display: none;"></div>
         </div>
         <div class="scalebar">
-            <div class="scalebar-title">Reaction Rate (M<sup>-1</sup> · min<sup>-1</sup>)</div>
             <div class="scalebar-container" id="scalebar-gradient">
                 <!-- Gradient will be applied programmatically -->
+                <div class="scalebar-indicator" id="scalebar-indicator"></div>
             </div>
+            <div class="scalebar-title">Reaction Rate (M<sup>-1</sup> · min<sup>-1</sup>)</div>
         </div>
     </div>
 
@@ -1294,6 +1309,7 @@
                 const cellData = selectedCells.get(cellKey);
                 returnColor(cellData.color);
                 removeSelectedCellBorder(acidName, amineName);
+                removeSelectedScalebarIndicator(acidName, amineName);
                 selectedCells.delete(cellKey);
             } else {
                 // Select cell (if we haven't reached the limit)
@@ -1313,6 +1329,7 @@
                 });
                 
                 addSelectedCellBorder(acidName, amineName, color);
+                addSelectedScalebarIndicator(acidName, amineName, reactionRate, color);
             }
             
             updateSidebar();
@@ -1532,6 +1549,18 @@
             // Re-add borders for all selected cells
             for (const [cellKey, cellData] of selectedCells) {
                 addSelectedCellBorder(cellData.acidName, cellData.amineName, cellData.color);
+            }
+        }
+
+        // Function to refresh selected scalebar indicators (useful for window resize)
+        function refreshSelectedScalebarIndicators() {
+            // Remove all existing selected scalebar indicators
+            const existingIndicators = document.querySelectorAll('.scalebar-selected-indicator');
+            existingIndicators.forEach(indicator => indicator.remove());
+            
+            // Re-add indicators for all selected cells
+            for (const [cellKey, cellData] of selectedCells) {
+                addSelectedScalebarIndicator(cellData.acidName, cellData.amineName, cellData.reactionRate, cellData.color);
             }
         }
         
@@ -1758,6 +1787,135 @@
                 container.appendChild(tick);
                 container.appendChild(label);
             });
+        }
+
+        // Function to show scalebar indicator for a specific rate value
+        function showScalebarIndicator(reactionRate) {
+            const indicator = document.getElementById('scalebar-indicator');
+            if (!indicator || !heatmapData) return;
+            
+            const linthresh = 10;
+            
+            // Get the data range from the heatmap
+            const dataToUse = heatmapData.customdata || heatmapData.z;
+            let minVal = Infinity;
+            let maxVal = -Infinity;
+            
+            if (dataToUse) {
+                dataToUse.forEach(row => {
+                    row.forEach(val => {
+                        if (val !== null && val !== undefined && !isNaN(val)) {
+                            minVal = Math.min(minVal, val);
+                            maxVal = Math.max(maxVal, val);
+                        }
+                    });
+                });
+            }
+            
+            // Use the same symlog transformation as the tick positioning
+            function symlogTransform(x, linthresh) {
+                const absX = Math.abs(x);
+                const signX = Math.sign(x);
+                
+                if (absX <= linthresh) {
+                    return x; // Linear region
+                } else {
+                    return signX * linthresh * (1 + Math.log(absX / linthresh)); // Log region
+                }
+            }
+            
+            // Transform min/max values using symlog for range calculation
+            const transformedMin = symlogTransform(minVal, linthresh);
+            const transformedMax = symlogTransform(maxVal, linthresh);
+            
+            // Transform the current rate value
+            const transformedRate = symlogTransform(reactionRate, linthresh);
+            
+            // Calculate position as percentage across the scalebar
+            const position = ((transformedRate - transformedMin) / (transformedMax - transformedMin)) * 100;
+            
+            // Position the indicator
+            indicator.style.left = `${position}%`;
+            indicator.style.transform = 'translateX(-50%)';
+            indicator.style.opacity = '1';
+        }
+
+        // Function to hide scalebar indicator
+        function hideScalebarIndicator() {
+            const indicator = document.getElementById('scalebar-indicator');
+            if (indicator) {
+                indicator.style.opacity = '0';
+            }
+        }
+
+        // Function to add persistent scalebar indicator for selected cell
+        function addSelectedScalebarIndicator(acidName, amineName, reactionRate, color) {
+            const scalebarContainer = document.getElementById('scalebar-gradient');
+            if (!scalebarContainer || !heatmapData) return;
+            
+            const cellKey = getCellKey(acidName, amineName);
+            
+            // Remove existing indicator for this cell if it exists
+            removeSelectedScalebarIndicator(acidName, amineName);
+            
+            const linthresh = 10;
+            
+            // Get the data range from the heatmap
+            const dataToUse = heatmapData.customdata || heatmapData.z;
+            let minVal = Infinity;
+            let maxVal = -Infinity;
+            
+            if (dataToUse) {
+                dataToUse.forEach(row => {
+                    row.forEach(val => {
+                        if (val !== null && val !== undefined && !isNaN(val)) {
+                            minVal = Math.min(minVal, val);
+                            maxVal = Math.max(maxVal, val);
+                        }
+                    });
+                });
+            }
+            
+            // Use the same symlog transformation as the tick positioning
+            function symlogTransform(x, linthresh) {
+                const absX = Math.abs(x);
+                const signX = Math.sign(x);
+                
+                if (absX <= linthresh) {
+                    return x; // Linear region
+                } else {
+                    return signX * linthresh * (1 + Math.log(absX / linthresh)); // Log region
+                }
+            }
+            
+            // Transform min/max values using symlog for range calculation
+            const transformedMin = symlogTransform(minVal, linthresh);
+            const transformedMax = symlogTransform(maxVal, linthresh);
+            
+            // Transform the current rate value
+            const transformedRate = symlogTransform(reactionRate, linthresh);
+            
+            // Calculate position as percentage across the scalebar
+            const position = ((transformedRate - transformedMin) / (transformedMax - transformedMin)) * 100;
+            
+            // Create the persistent indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'scalebar-selected-indicator';
+            indicator.dataset.cellKey = cellKey;
+            indicator.style.left = `${position}%`;
+            indicator.style.transform = 'translateX(-50%)';
+            indicator.style.backgroundColor = color;
+            
+            scalebarContainer.appendChild(indicator);
+        }
+
+        // Function to remove persistent scalebar indicator for selected cell
+        function removeSelectedScalebarIndicator(acidName, amineName) {
+            const cellKey = getCellKey(acidName, amineName);
+            const indicator = document.querySelector(`.scalebar-selected-indicator[data-cell-key="${cellKey}"]`);
+            if (indicator) {
+                indicator.remove();
+            }
         }
 
         // Heatmap highlighting functions
@@ -2003,9 +2161,10 @@
                     gameOfLife.initializeGrid();
                 }
             }
-            // Refresh selected cell borders on resize
+            // Refresh selected cell borders and scalebar indicators on resize
             setTimeout(() => {
                 refreshSelectedCellBorders();
+                refreshSelectedScalebarIndicators();
             }, 100);
         });
         
@@ -2067,8 +2226,9 @@
                             const point = data.points[0];
                             const colValue = point.x; // Column value (amine name)
                             const rowValue = point.y; // Row value (acid name)
+                            const reactionRate = point.customdata; // Original reaction rate
                             
-                            console.log('Cell hover:', { colValue, rowValue });
+                            console.log('Cell hover:', { colValue, rowValue, reactionRate });
                             
                             // Reset styling from previous cell if any
                             if (currentHoveredCell) {
@@ -2083,6 +2243,9 @@
                             
                             // Show tooltips for corresponding axis labels
                             showAxisTooltipsForCell(colValue, rowValue);
+                            
+                            // Show scalebar indicator for the reaction rate
+                            showScalebarIndicator(reactionRate);
                         }
                     });
                     
@@ -2096,6 +2259,9 @@
                             resetAxisLabelStyling(currentHoveredCell.amine, currentHoveredCell.acid);
                             currentHoveredCell = null;
                         }
+                        
+                        // Hide scalebar indicator
+                        hideScalebarIndicator();
                     });
                     
                     // When clicking a cell
@@ -2110,7 +2276,7 @@
                             
                             // Toggle cell selection for comparison
                             toggleCellSelection(acidName, amineName, reactionRate);
-                        }
+                            }
                     });
                     
                 }).then(() => {
@@ -2156,6 +2322,7 @@
                                 event.target.style.cursor = 'pointer';
                                 showMoleculeTooltip(event, labelText.trim(), labelType);
                                 showHighlight(labelText.trim(), labelType);
+                                hideScalebarIndicator(); // Hide scalebar indicator when hovering axis labels
                             }
                         });
                         
@@ -2168,6 +2335,7 @@
                                 target.style.cursor = 'default';
                                 scheduleHideTooltip(200);
                                 hideHighlight();
+                                hideScalebarIndicator(); // Hide scalebar indicator when leaving axis labels
                             }
                         });
                         
@@ -2201,6 +2369,7 @@
                                         textElement.style.fontWeight = 'bold';
                                         showMoleculeTooltip(event, textElement.textContent.trim(), labelType);
                                         showHighlight(textElement.textContent.trim(), labelType);
+                                        hideScalebarIndicator(); // Hide scalebar indicator when hovering axis labels
                                     });
                                     
                                     textElement.addEventListener('mouseleave', function(event) {
@@ -2209,6 +2378,7 @@
                                         textElement.style.fontWeight = '';
                                         scheduleHideTooltip(200);
                                         hideHighlight();
+                                        hideScalebarIndicator(); // Hide scalebar indicator when leaving axis labels
                                     });
                                 }
                             }
@@ -2216,9 +2386,10 @@
                         
                     }, 1000);
                     
-                    // Refresh selected cell borders after heatmap is fully loaded
+                    // Refresh selected cell borders and scalebar indicators after heatmap is fully loaded
                     setTimeout(() => {
                         refreshSelectedCellBorders();
+                        refreshSelectedScalebarIndicators();
                     }, 1500);
                 });
             })

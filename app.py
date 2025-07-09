@@ -102,7 +102,9 @@ def get_heatmap_data():
             xaxis=dict(
                 tickangle=45,
                 side='bottom',
-                constrain='domain'
+                constrain='domain',
+                tickfont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'),
+                titlefont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
             ),
             yaxis=dict(
                 tickmode='linear',
@@ -110,14 +112,17 @@ def get_heatmap_data():
                 scaleanchor='x',
                 scaleratio=1,
                 constrain='domain',
-                side='right'
+                side='right',
+                tickfont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'),
+                titlefont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
             ),
             # Calculate dimensions for square cells - 125% larger
             # 30 rows (acid chlorides) × 34 columns (amines)
             # Base cell size of 25 pixels (125% of 20px)
             width=34 * 30 + 100 + 30 + 70,  # Larger for better detail
             height=30 * 30 + 35 + 60,  # Larger for better detail
-            margin=dict(l=100, r=30, t=8, b=30)
+            margin=dict(l=100, r=30, t=8, b=30),
+            font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
         )
         
         # Convert to JSON
