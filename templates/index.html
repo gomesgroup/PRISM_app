@@ -92,8 +92,18 @@
 
             .sidebar {
                 width: 500px;
-                height: 700px;
+                height: 600px;
+                padding: 10px;
                 box-shadow: 0 0 5px 1px #C0C0C0;
+            }
+
+            .rate-chart-container {
+                padding: 18px;
+                margin-bottom: 12px;
+            }
+
+            .rate-chart {
+                height: 180px;
             }
 
             #heatmap {
@@ -239,7 +249,7 @@
             margin: 6px 0 0 20px; /* Add top margin for shadow space */
             justify-self: start;
             position: relative; /* Needed for pseudo-element positioning */
-            padding: 15px;
+            padding: 10px;
             box-sizing: border-box;
             box-shadow: 0 0 5px 1px #C0C0C0;
         }
@@ -252,23 +262,82 @@
         }
 
         .sidebar-header {
-            text-align: center;
+            text-align: left;
             margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            padding: 8px 15px 8px 15px;
+            position: relative;
+        }
+
+        .sidebar-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 15px;
+            width: calc(100% - 30px);
+            height: 4.5px;
+            background-color: #D9D9D9;
+        }
+
+        .sidebar-header::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 15px;
+            width: calc(25% - 7.5px);
+            height: 4.5px;
+            background-color: #6F6F6F;
+            z-index: 1;
         }
 
         .sidebar-title {
-            font-size: 1.2rem;
+            font-size: 24px;
             font-weight: 600;
-            color: #333;
+            color: #6F6F6F;
             margin: 0;
         }
 
-        .sidebar-subtitle {
-            font-size: 0.9rem;
-            color: #666;
-            margin: 5px 0 0 0;
+        .rate-chart-container {
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .rate-chart {
+            width: 100%;
+            height: 150px;
+        }
+
+        .chart-axis {
+            stroke: #666;
+            stroke-width: 1;
+        }
+
+        .chart-grid {
+            stroke: #e0e0e0;
+            stroke-width: 0.5;
+        }
+
+        .chart-line {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .chart-point {
+            r: 4;
+            stroke-width: 2;
+            fill: white;
+        }
+
+        .chart-text {
+            font-size: 11px;
+            font-family: 'Avenir', sans-serif;
+            fill: #666;
+        }
+
+        .chart-axis-label {
+            font-size: 12px;
+            font-family: 'Avenir', sans-serif;
+            fill: #333;
+            font-weight: 500;
         }
         
         .sidebar-column-headers {
@@ -297,7 +366,7 @@
         .reaction-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
+            gap: 25px;
             align-items: start;
             padding: 8px;
             border-radius: 0px;
@@ -323,8 +392,8 @@
         }
 
         .molecule-container {
-            width: 120px;
-            height: 90px;
+            width: 130px;
+            height: 95px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -333,8 +402,8 @@
         }
 
         .molecule-container svg {
-            max-width: 115px;
-            max-height: 85px;
+            max-width: 125px;
+            max-height: 90px;
         }
 
         .molecule-name {
@@ -350,9 +419,9 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 90px;
+            height: 95px;
             margin-bottom: 5px;
-            width: 120px;
+            width: 130px;
         }
 
         .rate-value {
@@ -610,8 +679,17 @@
             .sidebar {
                 width: 300px;
                 height: 500px;
-                padding: 10px;
+                padding: 6px;
                 box-shadow: 0 0 5px 1px #C0C0C0;
+            }
+
+            .rate-chart-container {
+                padding: 10px;
+                margin-bottom: 8px;
+            }
+
+            .rate-chart {
+                height: 120px;
             }
 
             .molecule-container {
@@ -712,8 +790,17 @@
                 height: 200px;
                 margin-left: 0; /* Reset margins for mobile grid */
                 justify-self: center;
-                padding: 8px;
+                padding: 4px;
                 box-shadow: 0 0 5px 1px #C0C0C0;
+            }
+
+            .rate-chart-container {
+                padding: 8px;
+                margin-bottom: 5px;
+            }
+
+            .rate-chart {
+                height: 80px;
             }
 
             .reaction-grid {
@@ -722,7 +809,7 @@
             
             .reaction-row {
                 padding: 5px;
-                gap: 8px;
+                gap: 15px;
             }
 
             .molecule-container {
@@ -826,8 +913,10 @@
         <div class="sidebar">
             <div class="sidebar-content">
                 <div class="sidebar-header">
-                    <h3 class="sidebar-title">Reaction Comparison</h3>
-                    <p class="sidebar-subtitle">Click cells to compare (max 3)</p>
+                    <h3 class="sidebar-title">View</h3>
+                </div>
+                <div class="rate-chart-container">
+                    <svg id="rate-chart" class="rate-chart"></svg>
                 </div>
                 <div id="reaction-info" class="empty-sidebar">
                     Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.
@@ -1305,6 +1394,9 @@
                 removeSelectedCellBorder(acidName, amineName);
                 removeSelectedScalebarIndicator(acidName, amineName);
                 selectedCells.delete(cellKey);
+                
+                // Remove from chart with the cell's color
+                addCellToChart(acidName, amineName, reactionRate, cellData.color);
             } else {
                 // Select cell (if we haven't reached the limit)
                 if (selectedCells.size >= 3) {
@@ -1324,17 +1416,23 @@
                 
                 addSelectedCellBorder(acidName, amineName, color);
                 addSelectedScalebarIndicator(acidName, amineName, reactionRate, color);
+                
+                // Add to chart with the selected cell's color
+                addCellToChart(acidName, amineName, reactionRate, color);
             }
             
             updateSidebar();
         }
         
-        // Function to update sidebar with all selected cells
+                 // Function to update sidebar with all selected cells
         async function updateSidebar() {
             const reactionInfo = document.getElementById('reaction-info');
             
             if (selectedCells.size === 0) {
                 reactionInfo.innerHTML = '<div class="empty-sidebar">Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.</div>';
+                // Clear chart data when no cells are selected
+                selectedCellsData = [];
+                generateRateChart();
                 return;
             }
             
@@ -2386,11 +2484,267 @@
                         refreshSelectedScalebarIndicators();
                     }, 1500);
                 });
-            })
-            .catch(error => {
-                console.error('Error fetching heatmap data:', error);
-                document.getElementById('loading').innerHTML = 'Error loading heatmap: ' + error.message;
+                    })
+        .catch(error => {
+            console.error('Error fetching heatmap data:', error);
+            document.getElementById('loading').innerHTML = 'Error loading heatmap: ' + error.message;
+        });
+        
+        // Global variable to store selected cell data for charts
+        let selectedCellsData = [];
+        
+        // Generate sample reaction rate chart
+        function generateRateChart() {
+            const svg = document.getElementById('rate-chart');
+            
+            // Responsive dimensions
+            const screenWidth = window.innerWidth;
+            let width, height;
+            
+            if (screenWidth >= 2560) {
+                width = 460;
+                height = 180;
+            } else if (screenWidth <= 768) {
+                width = 300;
+                height = 80;
+            } else if (screenWidth <= 1024) {
+                width = 260;
+                height = 120;
+            } else {
+                width = 450;
+                height = 150;
+            }
+            
+            const margin = { top: 15, right: 25, bottom: 35, left: 50 };
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+            
+
+            
+            // If no selected cells, show default sample data
+            if (selectedCellsData.length === 0) {
+                selectedCellsData = [{
+                    acid: 'Sample',
+                    amine: 'Data',
+                    rate: 100,
+                    color: '#7A7C68',
+                    data: generateSampleData(100)
+                }];
+            }
+            
+            // Create scales (find max values across all datasets)
+            const maxTime = 30;
+            const maxInverseMolarity = Math.max(...selectedCellsData.flatMap(d => d.data.map(p => p.inverseMolarity))) + 0.2;
+            const minInverseMolarity = Math.min(...selectedCellsData.flatMap(d => d.data.map(p => p.inverseMolarity))) - 0.1;
+            
+            const xScale = (x) => (x / maxTime) * plotWidth;
+            const yScale = (y) => plotHeight - ((y - minInverseMolarity) / (maxInverseMolarity - minInverseMolarity)) * plotHeight;
+            
+            // Clear existing content
+            svg.innerHTML = '';
+            
+            // Set SVG attributes
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            
+            // Create main group
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('transform', `translate(${margin.left}, ${margin.top})`);
+            svg.appendChild(g);
+            
+            // Draw grid lines
+            for (let i = 0; i <= 3; i++) {
+                const x = (i / 3) * plotWidth;
+                const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                gridLine.setAttribute('x1', x);
+                gridLine.setAttribute('y1', 0);
+                gridLine.setAttribute('x2', x);
+                gridLine.setAttribute('y2', plotHeight);
+                gridLine.setAttribute('class', 'chart-grid');
+                g.appendChild(gridLine);
+                
+                // X-axis labels
+                const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                xLabel.setAttribute('x', x);
+                xLabel.setAttribute('y', plotHeight + 20);
+                xLabel.setAttribute('class', 'chart-text');
+                xLabel.setAttribute('text-anchor', 'middle');
+                xLabel.textContent = (i * 10).toString();
+                g.appendChild(xLabel);
+            }
+            
+            // Y-axis grid lines and labels
+            const ySteps = 4;
+            for (let i = 0; i <= ySteps; i++) {
+                const y = (i / ySteps) * plotHeight;
+                const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                gridLine.setAttribute('x1', 0);
+                gridLine.setAttribute('y1', plotHeight - y);
+                gridLine.setAttribute('x2', plotWidth);
+                gridLine.setAttribute('y2', plotHeight - y);
+                gridLine.setAttribute('class', 'chart-grid');
+                g.appendChild(gridLine);
+                
+                // Y-axis labels
+                const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                yLabel.setAttribute('x', -15);
+                yLabel.setAttribute('y', plotHeight - y + 4);
+                yLabel.setAttribute('class', 'chart-text');
+                yLabel.setAttribute('text-anchor', 'end');
+                const yValue = minInverseMolarity + (i / ySteps) * (maxInverseMolarity - minInverseMolarity);
+                yLabel.textContent = yValue.toFixed(1);
+                g.appendChild(yLabel);
+            }
+            
+            // Draw axes
+            const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            xAxis.setAttribute('x1', 0);
+            xAxis.setAttribute('y1', plotHeight);
+            xAxis.setAttribute('x2', plotWidth);
+            xAxis.setAttribute('y2', plotHeight);
+            xAxis.setAttribute('class', 'chart-axis');
+            g.appendChild(xAxis);
+            
+            const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            yAxis.setAttribute('x1', 0);
+            yAxis.setAttribute('y1', 0);
+            yAxis.setAttribute('x2', 0);
+            yAxis.setAttribute('y2', plotHeight);
+            yAxis.setAttribute('class', 'chart-axis');
+            g.appendChild(yAxis);
+            
+            // Draw lines and points for each selected cell
+            selectedCellsData.forEach(cellData => {
+                const data = cellData.data;
+                const color = cellData.color;
+                
+                // Calculate line of best fit for this dataset
+                const n = data.length;
+                const sumX = data.reduce((sum, d) => sum + d.time, 0);
+                const sumY = data.reduce((sum, d) => sum + d.inverseMolarity, 0);
+                const sumXY = data.reduce((sum, d) => sum + d.time * d.inverseMolarity, 0);
+                const sumXX = data.reduce((sum, d) => sum + d.time * d.time, 0);
+                
+                const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+                
+                // Draw line of best fit
+                const lineStart = { x: 0, y: intercept };
+                const lineEnd = { x: maxTime, y: slope * maxTime + intercept };
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', xScale(lineStart.x));
+                line.setAttribute('y1', yScale(lineStart.y));
+                line.setAttribute('x2', xScale(lineEnd.x));
+                line.setAttribute('y2', yScale(lineEnd.y));
+                line.setAttribute('class', 'chart-line');
+                line.setAttribute('stroke', color);
+                g.appendChild(line);
+                
+                // Draw data points
+                data.forEach(d => {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', xScale(d.time));
+                    circle.setAttribute('cy', yScale(d.inverseMolarity));
+                    circle.setAttribute('class', 'chart-point');
+                    circle.setAttribute('stroke', color);
+                    circle.setAttribute('opacity', '0.7');
+                    g.appendChild(circle);
+                });
             });
+            
+            // Add axis labels
+            const xAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            xAxisLabel.setAttribute('x', plotWidth / 2);
+            xAxisLabel.setAttribute('y', height - 5);
+            xAxisLabel.setAttribute('class', 'chart-axis-label');
+            xAxisLabel.setAttribute('text-anchor', 'middle');
+            xAxisLabel.textContent = 'Time (min)';
+            svg.appendChild(xAxisLabel);
+            
+            const yAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            yAxisLabel.setAttribute('x', 15);
+            yAxisLabel.setAttribute('y', height / 2);
+            yAxisLabel.setAttribute('class', 'chart-axis-label');
+            yAxisLabel.setAttribute('text-anchor', 'middle');
+            yAxisLabel.setAttribute('transform', `rotate(-90, 15, ${height / 2})`);
+            yAxisLabel.textContent = '1/M';
+            svg.appendChild(yAxisLabel);
+        }
+        
+
+        
+        // Function to add cell data to the chart
+        function addCellToChart(acidName, amineName, reactionRate, cellColor) {
+            const cellKey = `${acidName}_${amineName}`;
+            
+            // Check if this cell is already in the chart
+            const existingIndex = selectedCellsData.findIndex(d => d.key === cellKey);
+            
+            if (existingIndex !== -1) {
+                // Remove existing data for this cell
+                selectedCellsData.splice(existingIndex, 1);
+            } else {
+                // Add new data for this cell using the selected cell's color
+                const cellData = {
+                    key: cellKey,
+                    acid: acidName,
+                    amine: amineName,
+                    rate: reactionRate,
+                    color: cellColor,
+                    data: generateSampleData(reactionRate)
+                };
+                
+                selectedCellsData.push(cellData);
+                
+                // Limit to 3 datasets maximum
+                if (selectedCellsData.length > 3) {
+                    selectedCellsData.shift();
+                }
+            }
+            
+            // If no data left, add back sample data
+            if (selectedCellsData.length === 0) {
+                selectedCellsData = [{
+                    key: 'sample',
+                    acid: 'Sample',
+                    amine: 'Data',
+                    rate: 100,
+                    color: '#7A7C68',
+                    data: generateSampleData(100)
+                }];
+            }
+            
+            // Regenerate chart with new data
+            generateRateChart();
+        }
+        
+        // Function to generate sample data for a given reaction rate
+        function generateSampleData(reactionRate) {
+            // Base sample data points (time in minutes, 1/M)
+            const baseData = [
+                { time: 0, inverseMolarity: 0.5 },
+                { time: 10, inverseMolarity: 0.8 },
+                { time: 20, inverseMolarity: 1.2 },
+                { time: 30, inverseMolarity: 1.6 }
+            ];
+            
+            // Modify data based on reaction rate (higher rates = steeper slope)
+            const rateFactor = reactionRate ? Math.log10(reactionRate) / 4 : 1;
+            return baseData.map(d => ({
+                time: d.time,
+                inverseMolarity: d.inverseMolarity * (0.5 + rateFactor)
+            }));
+        }
+        
+        // Generate the chart on page load
+        generateRateChart();
+        
+        // Regenerate chart on window resize for responsiveness
+        window.addEventListener('resize', function() {
+            generateRateChart();
+        });
     </script>
 </body>
 </html> 
