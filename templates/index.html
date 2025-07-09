@@ -67,7 +67,7 @@
             .title {
                 font-size: 4.5rem;
                 font-weight: 800;
-            }
+        }
 
             .subtitle {
                 font-size: 1.5rem;
@@ -81,10 +81,13 @@
             .content-container {
                 margin-top: 140px;
                 padding: 0px;
-                width: 100vw;
+            width: 100vw;
                 overflow-x: hidden;
-                display: flex;
-                justify-content: flex-start;
+                display: grid;
+                grid-template-columns: 540px 1fr 20px; /* Larger sidebar area for very large screens */
+                grid-template-areas: "sidebar heatmap .";
+                align-items: start;
+                box-sizing: border-box;
             }
 
             .sidebar {
@@ -97,7 +100,7 @@
                 height: 960px;
                 max-width: 1200px;
                 min-width: 800px;
-            }
+        }
 
             .cell {
                 width: 80px !important;
@@ -110,6 +113,25 @@
 
             .grid {
                 gap: 12px;
+            }
+
+            .scalebar {
+                width: 500px; /* Match larger sidebar width exactly */
+                height: 140px; /* Increased height to accommodate ticks below */
+                top: 745px; /* Position below larger sidebar (700px height + 20px margin + 25px gap) */
+            }
+
+            .scalebar-container {
+                height: 35px; /* Reduced thickness */
+                overflow: visible; /* Allow ticks to show below */
+            }
+
+            .scalebar-labels {
+                font-size: 0.9rem;
+            }
+
+            .scalebar-title {
+                font-size: 1.0rem;
             }
         }
 
@@ -217,6 +239,151 @@
             margin-left: 20px; /* Keep original positioning within grid area */
             justify-self: start;
             position: relative; /* Needed for pseudo-element positioning */
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Sidebar Content */
+        .sidebar-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.9rem;
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        
+        .sidebar-column-headers {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #555;
+            text-align: center;
+        }
+
+        /* Reaction Grid */
+        .reaction-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .reaction-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            align-items: start;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.5);
+            border-left: 4px solid;
+            position: relative;
+        }
+
+        .reaction-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .column-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .molecule-container {
+            width: 120px;
+            height: 90px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .molecule-container svg {
+            max-width: 115px;
+            max-height: 85px;
+        }
+
+        .molecule-name {
+            font-size: 0.75rem;
+            color: #444;
+            font-weight: 500;
+            word-break: break-word;
+            line-height: 1.2;
+        }
+
+        .rate-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 90px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background: rgba(240, 248, 255, 0.8);
+            margin-bottom: 10px;
+            width: 120px;
+        }
+
+        .rate-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .rate-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .empty-sidebar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            flex: 1;
         }
 
         /* Sidebar shadow effect */
@@ -245,6 +412,45 @@
             margin: 0;
             max-width: 1020px; /* Maximum size */
             min-width: 600px;  /* Minimum usable size */
+        }
+
+        /* Scalebar */
+        .scalebar {
+            position: absolute;
+            width: 500px; /* Match sidebar width exactly */
+            height: 130px; /* Increased height to accommodate ticks below */
+            left: 20px; /* Align with sidebar */
+            top: 640px; /* Position below sidebar (600px height + 20px margin + 20px gap) */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 60; /* Ensure it's above background elements */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .scalebar-container {
+            width: 100%;
+            height: 30px; /* Reduced thickness */
+            position: relative;
+            overflow: visible; /* Allow ticks to show below */
+        }
+
+        .scalebar-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .scalebar-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
         }
         
         .loading {
@@ -317,6 +523,16 @@
             opacity: 0.8;
         }
         
+        /* Selected cell borders */
+        .selected-cell-border {
+            position: absolute;
+            pointer-events: none;
+            border: 4px solid;
+            box-sizing: border-box;
+            z-index: 150;
+            opacity: 1;
+        }
+        
         /* Ensure axis labels can receive mouse events */
         .xtick text, .ytick text {
             pointer-events: all !important;
@@ -386,6 +602,33 @@
             .sidebar {
                 width: 300px;
                 height: 500px;
+                padding: 15px;
+            }
+
+            .molecule-container {
+                width: 80px;
+                height: 60px;
+            }
+
+            .molecule-container svg {
+                max-width: 75px;
+                max-height: 55px;
+            }
+
+            .rate-container {
+                width: 80px;
+                height: 60px;
+            }
+
+            .scalebar {
+                width: 300px; /* Match smaller sidebar width exactly */
+                height: 120px; /* Increased height to accommodate ticks below */
+                top: 530px; /* Position below smaller sidebar (500px height + 15px margin + 15px gap) */
+            }
+
+            .scalebar-container {
+                height: 25px; /* Reduced thickness */
+                overflow: visible; /* Allow ticks to show below */
             }
 
             .sidebar::before {
@@ -461,6 +704,60 @@
                 height: 200px;
                 margin-left: 0; /* Reset margins for mobile grid */
                 justify-self: center;
+                padding: 10px;
+            }
+
+            .reaction-grid {
+                gap: 10px;
+            }
+            
+            .reaction-row {
+                padding: 10px;
+                gap: 8px;
+            }
+
+            .molecule-container {
+                width: 60px;
+                height: 45px;
+            }
+
+            .molecule-container svg {
+                max-width: 55px;
+                max-height: 40px;
+            }
+
+            .rate-container {
+                width: 60px;
+                height: 45px;
+            }
+
+            .column-label {
+                font-size: 0.7rem;
+                margin-bottom: 5px;
+            }
+
+            .molecule-name {
+                font-size: 0.65rem;
+            }
+
+            .scalebar {
+                width: 90%; /* Match mobile sidebar width */
+                height: 100px; /* Increased height to accommodate ticks below */
+                left: 5%; /* Center horizontally */
+                top: 240px; /* Position below mobile sidebar (200px height + 20px margin + 20px gap) */
+            }
+
+            .scalebar-container {
+                height: 20px; /* Reduced thickness */
+                overflow: visible; /* Allow ticks to show below */
+            }
+
+            .scalebar-labels {
+                font-size: 0.7rem;
+            }
+
+            .scalebar-title {
+                font-size: 0.8rem;
             }
 
             .sidebar::before {
@@ -519,11 +816,25 @@
     <!-- Content -->
     <div class="content-container">
         <div class="sidebar">
-            <!-- Sidebar content will go here -->
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h3 class="sidebar-title">Reaction Comparison</h3>
+                    <p class="sidebar-subtitle">Click cells to compare (max 3)</p>
+                </div>
+                <div id="reaction-info" class="empty-sidebar">
+                    Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.
+                </div>
+            </div>
         </div>
         <div class="heatmap-wrapper">
     <div id="loading" class="loading">Loading heatmap...</div>
     <div id="heatmap" style="display: none;"></div>
+        </div>
+        <div class="scalebar">
+            <div class="scalebar-title">Reaction Rate (M<sup>-1</sup> · min<sup>-1</sup>)</div>
+            <div class="scalebar-container" id="scalebar-gradient">
+                <!-- Gradient will be applied programmatically -->
+            </div>
         </div>
     </div>
 
@@ -750,11 +1061,17 @@
         let rdkitLoaded = false;
         let currentTooltip = null;
         let tooltipTimeout = null;
+        let currentHoveredCell = null;
         
         // Heatmap highlighting functionality
         let currentHighlights = [];
         let heatmapData = null;
         let heatmapLabels = { x: [], y: [] };
+        
+        // Selection and comparison functionality
+        let selectedCells = new Map(); // Map of "acidName,amineName" -> {acidName, amineName, reactionRate, color}
+        let colorStack = ['#00FFD4', '#9AACFF', '#FF8434']; // Available colors
+        let usedColors = []; // Colors currently in use
         
         // Initialize RDKit
         initRDKitModule().then(function(RDKit_module) {
@@ -815,15 +1132,16 @@
                 tooltipTimeout = null;
             }
             
-            if (currentTooltip && currentTooltip.dataset.compound === name) {
+            // Check if tooltip for this compound already exists
+            const existingTooltip = document.querySelector(`.molecule-tooltip[data-compound="${name}"]`);
+            if (existingTooltip) {
                 return;
             }
-            
-            hideMoleculeTooltip();
             
             const tooltip = document.createElement('div');
             tooltip.className = 'molecule-tooltip';
             tooltip.dataset.compound = name;
+            tooltip.dataset.type = type;
             
             const structureDiv = document.createElement('div');
             structureDiv.className = 'structure';
@@ -832,7 +1150,7 @@
             
             structureDiv.innerHTML = '<div class="loading-structure">Loading structure...</div>';
             
-            const rect = event.target.getBoundingClientRect();
+            const rect = event.target ? event.target.getBoundingClientRect() : event.getBoundingClientRect();
             
             // ===========================================
             // MANUAL TUNING POINTS FOR TOOLTIP POSITION
@@ -845,7 +1163,7 @@
                 
                 tooltip.style.left = (rect.left + HORIZONTAL_OFFSET) + 'px';
                 tooltip.style.top = (rect.top + VERTICAL_OFFSET) + 'px';
-                
+            
             } else if (type === 'acid') {
                 // VERTICAL AXIS (left labels) - Tooltip appears to the right
                 const HORIZONTAL_OFFSET = 50;  // ← TUNE: pixels right of label
@@ -887,10 +1205,10 @@
         }
         
         function hideMoleculeTooltip() {
-            if (currentTooltip) {
-                currentTooltip.remove();
+            // Remove all molecule tooltips
+            const allTooltips = document.querySelectorAll('.molecule-tooltip');
+            allTooltips.forEach(tooltip => tooltip.remove());
                 currentTooltip = null;
-            }
         }
         
         function scheduleHideTooltip(delay = 200) {
@@ -898,6 +1216,548 @@
                 clearTimeout(tooltipTimeout);
             }
             tooltipTimeout = setTimeout(hideMoleculeTooltip, delay);
+        }
+
+        // Function to get SMILES data for molecules
+        async function getSmilesData(name, type) {
+            if (!smilesData) return null;
+            return type === 'amine' ? smilesData.amines[name] : smilesData.acids[name];
+        }
+        
+        // Color and selection management functions
+        function getNextColor() {
+            if (colorStack.length === 0) return null;
+            const color = colorStack.pop();
+            usedColors.push(color);
+            return color;
+        }
+        
+        function returnColor(color) {
+            const index = usedColors.indexOf(color);
+            if (index > -1) {
+                usedColors.splice(index, 1);
+                colorStack.push(color);
+            }
+        }
+        
+        function getCellKey(acidName, amineName) {
+            return `${acidName},${amineName}`;
+        }
+        
+        function findCellPosition(acidName, amineName) {
+            const colIndex = heatmapLabels.x.indexOf(amineName);
+            const rowIndex = heatmapLabels.y.indexOf(acidName);
+            return { colIndex, rowIndex };
+        }
+        
+        function addSelectedCellBorder(acidName, amineName, color) {
+            const { colIndex, rowIndex } = findCellPosition(acidName, amineName);
+            if (colIndex === -1 || rowIndex === -1) return;
+            
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return;
+            
+            const gridInfo = getHeatmapGridDimensions();
+            if (!gridInfo) return;
+            
+            const heatmapRect = heatmapDiv.getBoundingClientRect();
+            const cellWidth = gridInfo.gridWidth / heatmapLabels.x.length;
+            const cellHeight = gridInfo.gridHeight / heatmapLabels.y.length;
+            const gridStartX = gridInfo.rect.left - heatmapRect.left;
+            const gridStartY = gridInfo.rect.top - heatmapRect.top;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'selected-cell-border';
+            overlay.style.borderColor = color;
+            overlay.style.left = (gridStartX + colIndex * cellWidth) + 'px';
+            overlay.style.top = (gridStartY + rowIndex * cellHeight) + 'px';
+            overlay.style.width = cellWidth + 'px';
+            overlay.style.height = cellHeight + 'px';
+            overlay.dataset.cellKey = getCellKey(acidName, amineName);
+            
+            heatmapDiv.appendChild(overlay);
+        }
+        
+        function removeSelectedCellBorder(acidName, amineName) {
+            const cellKey = getCellKey(acidName, amineName);
+            const overlay = document.querySelector(`.selected-cell-border[data-cell-key="${cellKey}"]`);
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+        
+        function toggleCellSelection(acidName, amineName, reactionRate) {
+            const cellKey = getCellKey(acidName, amineName);
+            
+            if (selectedCells.has(cellKey)) {
+                // Deselect cell
+                const cellData = selectedCells.get(cellKey);
+                returnColor(cellData.color);
+                removeSelectedCellBorder(acidName, amineName);
+                selectedCells.delete(cellKey);
+            } else {
+                // Select cell (if we haven't reached the limit)
+                if (selectedCells.size >= 3) {
+                    console.log('Maximum of 3 cells can be selected');
+                    return;
+                }
+                
+                const color = getNextColor();
+                if (!color) return;
+                
+                selectedCells.set(cellKey, {
+                    acidName,
+                    amineName,
+                    reactionRate,
+                    color
+                });
+                
+                addSelectedCellBorder(acidName, amineName, color);
+            }
+            
+            updateSidebar();
+        }
+        
+        // Function to update sidebar with all selected cells
+        async function updateSidebar() {
+            const reactionInfo = document.getElementById('reaction-info');
+            
+            if (selectedCells.size === 0) {
+                reactionInfo.innerHTML = '<div class="empty-sidebar">Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.</div>';
+                return;
+            }
+            
+            // Create container for all reaction rows
+            let gridHtml = `
+                <div style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="sidebar-column-headers">
+                        <div>Acid Chloride</div>
+                        <div>Amine</div>
+                        <div>Rate (M⁻¹ · min⁻¹)</div>
+                    </div>
+                    <div class="reaction-grid">
+            `;
+            
+            for (const [cellKey, cellData] of selectedCells) {
+                                gridHtml += `
+                    <div class="reaction-row" style="border-left-color: ${cellData.color};">
+                        <div class="reaction-column">
+                            <div class="molecule-container">
+                                <div style="color: #999; font-size: 0.8rem;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="reaction-column">
+                            <div class="molecule-container">
+                                <div style="color: #999; font-size: 0.8rem;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="reaction-column">
+                            <div class="rate-container">
+                                <div class="rate-value">${cellData.reactionRate !== null ? cellData.reactionRate.toFixed(3) : 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            gridHtml += '</div>'; // Close reaction-grid
+            gridHtml += '</div>'; // Close flex container
+            reactionInfo.innerHTML = gridHtml;
+            
+            // Load molecular structures for all selected cells
+            let rowIndex = 0;
+            for (const [cellKey, cellData] of selectedCells) {
+                loadMolecularStructures(cellData.acidName, cellData.amineName, rowIndex);
+                rowIndex++;
+            }
+        }
+        
+        // Function to load molecular structures for a specific row
+        async function loadMolecularStructures(acidName, amineName, rowIndex) {
+            const [acidSmiles, amineSmiles] = await Promise.all([
+                getSmilesData(acidName, 'acid'),
+                getSmilesData(amineName, 'amine')
+            ]);
+            
+            const reactionRows = document.querySelectorAll('.reaction-row');
+            if (rowIndex >= reactionRows.length) return;
+            
+            const row = reactionRows[rowIndex];
+            const acidContainer = row.querySelector('.reaction-column:nth-child(1) .molecule-container');
+            const amineContainer = row.querySelector('.reaction-column:nth-child(2) .molecule-container');
+            
+            // Render acid structure
+            if (acidSmiles) {
+                if (rdkitLoaded) {
+                    const acidSvg = drawMoleculeRDKit(acidSmiles, 115, 85);
+                    if (acidSvg) {
+                        acidContainer.innerHTML = acidSvg;
+                    } else {
+                        acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    }
+                } else {
+                    const img = document.createElement('img');
+                    img.src = getMoleculeImageUrl(acidSmiles);
+                    img.alt = 'Acid chloride structure';
+                    img.style.maxWidth = '115px';
+                    img.style.maxHeight = '85px';
+                    img.onerror = function() {
+                        acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    };
+                    acidContainer.innerHTML = '';
+                    acidContainer.appendChild(img);
+                }
+            } else {
+                acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+            }
+            
+            // Render amine structure
+            if (amineSmiles) {
+                if (rdkitLoaded) {
+                    const amineSvg = drawMoleculeRDKit(amineSmiles, 115, 85);
+                    if (amineSvg) {
+                        amineContainer.innerHTML = amineSvg;
+                    } else {
+                        amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    }
+                } else {
+                    const img = document.createElement('img');
+                    img.src = getMoleculeImageUrl(amineSmiles);
+                    img.alt = 'Amine structure';
+                    img.style.maxWidth = '115px';
+                    img.style.maxHeight = '85px';
+                    img.onerror = function() {
+                        amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    };
+                    amineContainer.innerHTML = '';
+                    amineContainer.appendChild(img);
+                }
+            } else {
+                amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+            }
+        }
+
+        // Function to populate sidebar with reaction details (DEPRECATED - replaced by toggleCellSelection)
+        async function populateSidebar(acidName, amineName, reactionRate) {
+            const reactionInfo = document.getElementById('reaction-info');
+            
+            // Show loading state
+            reactionInfo.innerHTML = `
+                <div class="reaction-grid">
+                    <div class="reaction-column">
+                        <div class="molecule-container">
+                            <div style="color: #999; font-size: 0.8rem;">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="reaction-column">
+                        <div class="molecule-container">
+                            <div style="color: #999; font-size: 0.8rem;">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="reaction-column">
+                        <div class="rate-container">
+                            <div class="rate-value">${reactionRate !== null ? reactionRate.toFixed(3) : 'N/A'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Get SMILES data and render structures
+            const [acidSmiles, amineSmiles] = await Promise.all([
+                getSmilesData(acidName, 'acid'),
+                getSmilesData(amineName, 'amine')
+            ]);
+            
+            // Update with molecular structures
+            const acidContainer = reactionInfo.querySelector('.reaction-column:nth-child(1) .molecule-container');
+            const amineContainer = reactionInfo.querySelector('.reaction-column:nth-child(2) .molecule-container');
+            
+            // Render acid structure
+            if (acidSmiles) {
+                if (rdkitLoaded) {
+                    const acidSvg = drawMoleculeRDKit(acidSmiles, 115, 85);
+                    if (acidSvg) {
+                        acidContainer.innerHTML = acidSvg;
+                    } else {
+                        acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    }
+                } else {
+                    const img = document.createElement('img');
+                    img.src = getMoleculeImageUrl(acidSmiles);
+                    img.alt = 'Acid chloride structure';
+                    img.style.maxWidth = '115px';
+                    img.style.maxHeight = '85px';
+                    img.onerror = function() {
+                        acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    };
+                    acidContainer.innerHTML = '';
+                    acidContainer.appendChild(img);
+                }
+            } else {
+                acidContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+            }
+            
+            // Render amine structure
+            if (amineSmiles) {
+                if (rdkitLoaded) {
+                    const amineSvg = drawMoleculeRDKit(amineSmiles, 115, 85);
+                    if (amineSvg) {
+                        amineContainer.innerHTML = amineSvg;
+                    } else {
+                        amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    }
+                } else {
+                    const img = document.createElement('img');
+                    img.src = getMoleculeImageUrl(amineSmiles);
+                    img.alt = 'Amine structure';
+                    img.style.maxWidth = '115px';
+                    img.style.maxHeight = '85px';
+                    img.onerror = function() {
+                        amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+                    };
+                    amineContainer.innerHTML = '';
+                    amineContainer.appendChild(img);
+                }
+            } else {
+                amineContainer.innerHTML = '<div style="color: #999; font-size: 0.8rem;">Structure unavailable</div>';
+            }
+        }
+        
+        // Function to refresh selected cell borders (useful for window resize)
+        function refreshSelectedCellBorders() {
+            // Remove all existing selected cell borders
+            const existingBorders = document.querySelectorAll('.selected-cell-border');
+            existingBorders.forEach(border => border.remove());
+            
+            // Re-add borders for all selected cells
+            for (const [cellKey, cellData] of selectedCells) {
+                addSelectedCellBorder(cellData.acidName, cellData.amineName, cellData.color);
+            }
+        }
+        
+        // Function to show axis tooltips when hovering over a cell
+        function showAxisTooltipsForCell(amineName, acidName) {
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return;
+            
+            // Clear any existing tooltips first
+            hideMoleculeTooltip();
+            
+            // Clear any scheduled hide timeout
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = null;
+            }
+            
+            // Find the axis label elements for this cell
+            const allTextElements = heatmapDiv.querySelectorAll('text');
+            
+            allTextElements.forEach((textElement) => {
+                const parent = textElement.parentNode;
+                if (parent && parent.classList) {
+                    let isAxisLabel = false;
+                    let labelType = null;
+                    
+                    if (parent.classList.contains('xtick')) {
+                        isAxisLabel = true;
+                        labelType = 'amine';
+                    } else if (parent.classList.contains('ytick')) {
+                        isAxisLabel = true;
+                        labelType = 'acid';
+                    }
+                    
+                    if (isAxisLabel) {
+                        const labelText = textElement.textContent.trim();
+                        
+                        // Show tooltip if this is the matching axis label
+                        if ((labelType === 'amine' && labelText === amineName) ||
+                            (labelType === 'acid' && labelText === acidName)) {
+                            
+                            // Apply the same styling as when hovering over axis labels
+                            textElement.style.cursor = 'pointer';
+                            textElement.style.fill = '#007acc';
+                            textElement.style.fontWeight = 'bold';
+                            
+                            // Create a synthetic event with the correct target and position
+                            const rect = textElement.getBoundingClientRect();
+                            const syntheticEvent = {
+                                target: textElement,
+                                getBoundingClientRect: () => rect,
+                                left: rect.left,
+                                top: rect.top,
+                                right: rect.right,
+                                bottom: rect.bottom,
+                                width: rect.width,
+                                height: rect.height
+                            };
+                            
+                            // Trigger the tooltip
+                            showMoleculeTooltip(syntheticEvent, labelText, labelType);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Function to reset axis label styling
+        function resetAxisLabelStyling(amineName, acidName) {
+            const heatmapDiv = document.getElementById('heatmap');
+            if (!heatmapDiv) return;
+            
+            // Find the axis label elements for this cell and reset their styling
+            const allTextElements = heatmapDiv.querySelectorAll('text');
+            
+            allTextElements.forEach((textElement) => {
+                const parent = textElement.parentNode;
+                if (parent && parent.classList) {
+                    let isAxisLabel = false;
+                    let labelType = null;
+                    
+                    if (parent.classList.contains('xtick')) {
+                        isAxisLabel = true;
+                        labelType = 'amine';
+                    } else if (parent.classList.contains('ytick')) {
+                        isAxisLabel = true;
+                        labelType = 'acid';
+                    }
+                    
+                    if (isAxisLabel) {
+                        const labelText = textElement.textContent.trim();
+                        
+                        // Reset styling if this is the matching axis label
+                        if ((labelType === 'amine' && labelText === amineName) ||
+                            (labelType === 'acid' && labelText === acidName)) {
+                            
+                            textElement.style.cursor = 'default';
+                            textElement.style.fill = '';
+                            textElement.style.fontWeight = '';
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Function to update scalebar with heatmap color scheme and data range
+        function updateScalebar(heatmapData) {
+            if (!heatmapData) {
+                return;
+            }
+            
+            // Use original values from customdata (not the SymLogNorm transformed z values)
+            let minVal = Infinity;
+            let maxVal = -Infinity;
+            
+            // Get original values from customdata if available, otherwise fall back to z
+            const dataToUse = heatmapData.customdata || heatmapData.z;
+            
+            if (dataToUse) {
+                dataToUse.forEach(row => {
+                    row.forEach(val => {
+                        if (val !== null && val !== undefined && !isNaN(val)) {
+                            minVal = Math.min(minVal, val);
+                            maxVal = Math.max(maxVal, val);
+                        }
+                    });
+                });
+            }
+            
+            // Note: Min/max values are calculated for tick positioning but not displayed
+            
+            // Create color gradient that matches the heatmap's Cividis color scheme
+            const scalebarContainer = document.getElementById('scalebar-gradient');
+            
+            if (scalebarContainer) {
+                // Remove any existing tick marks
+                scalebarContainer.querySelectorAll('.scalebar-tick, .scalebar-tick-label').forEach(el => el.remove());
+                
+                // Use Cividis colorscale that exactly matches the heatmap - correct Plotly implementation
+                const gradient = `linear-gradient(to right, 
+                    rgb(0, 32, 76),
+                    rgb(0, 42, 102),
+                    rgb(31, 82, 123),
+                    rgb(85, 104, 118),
+                    rgb(122, 120, 104),
+                    rgb(178, 171, 88),
+                    rgb(224, 196, 61),
+                    rgb(253, 231, 37))`;
+                
+                scalebarContainer.style.background = gradient;
+                
+                // Add tick marks that represent the SymLogNorm scaling
+                addScalebarTicks(minVal, maxVal, scalebarContainer);
+            }
+        }
+        
+        // Function to add tick marks that reflect SymLogNorm scaling
+        function addScalebarTicks(minVal, maxVal, container) {
+            // Use exact tick values as specified by user
+            const desiredTicks = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+            const linthresh = 10;
+            
+            // Filter to values within our data range
+            const validTicks = desiredTicks.filter(t => t >= minVal && t <= maxVal);
+            
+            // Apply SymLogNorm transformation (matching backend logic)
+            function symlogTransform(x, linthresh) {
+                const absX = Math.abs(x);
+                const signX = Math.sign(x);
+                
+                if (absX <= linthresh) {
+                    return x; // Linear region
+                } else {
+                    return signX * linthresh * (1 + Math.log(absX / linthresh)); // Log region
+                }
+            }
+            
+            // Transform all values to determine range
+            const transformedValid = validTicks.map(t => symlogTransform(t, linthresh));
+            const transformedMin = symlogTransform(minVal, linthresh);
+            const transformedMax = symlogTransform(maxVal, linthresh);
+            
+            validTicks.forEach(originalValue => {
+                const transformedValue = symlogTransform(originalValue, linthresh);
+                
+                // Calculate position as percentage across the scalebar
+                const position = ((transformedValue - transformedMin) / (transformedMax - transformedMin)) * 100;
+                
+                // Create tick mark (positioned below the scalebar)
+                const tick = document.createElement('div');
+                tick.className = 'scalebar-tick';
+                tick.style.cssText = `
+                    position: absolute;
+                    left: ${position}%;
+                    top: 100%;
+                    width: 2px;
+                    height: 8px;
+                    background-color: #333;
+                    transform: translateX(-50%);
+                `;
+                
+                // Create tick label (positioned below the tick)
+                const label = document.createElement('div');
+                label.className = 'scalebar-tick-label';
+                label.style.cssText = `
+                    position: absolute;
+                    left: ${position}%;
+                    top: 100%;
+                    transform: translateX(-50%);
+                    margin-top: 10px;
+                    font-size: 10px;
+                    color: #666;
+                    white-space: nowrap;
+                    font-family: Arial, sans-serif;
+                `;
+                
+                // Format label based on value using scientific notation
+                if (originalValue >= 1000) {
+                    label.textContent = originalValue.toExponential(0);
+                } else {
+                    label.textContent = originalValue.toString();
+                }
+                
+                container.appendChild(tick);
+                container.appendChild(label);
+            });
         }
 
         // Heatmap highlighting functions
@@ -1143,6 +2003,10 @@
                     gameOfLife.initializeGrid();
                 }
             }
+            // Refresh selected cell borders on resize
+            setTimeout(() => {
+                refreshSelectedCellBorders();
+            }, 100);
         });
         
         // Load and display heatmap
@@ -1178,6 +2042,9 @@
                 heatmapLabels.x = heatmapData.x || [];
                 heatmapLabels.y = heatmapData.y || [];
                 
+                // Update scalebar with heatmap data
+                updateScalebar(heatmapData);
+                
                 // Disable cell tooltips - we only want our highlighting effect
                 plotData.data[0].hovertemplate = '';
                 plotData.data[0].hoverinfo = 'none';
@@ -1190,10 +2057,10 @@
                     displayModeBar: false,
                     displaylogo: false
                 }).then(() => {
-                    
+                        
                     // Add cell hover highlighting using Plotly events
-                    const heatmapDiv = document.getElementById('heatmap');
-                    
+                        const heatmapDiv = document.getElementById('heatmap');
+                        
                     // When hovering over a cell
                     heatmapDiv.on('plotly_hover', function(data) {
                         if (data.points && data.points.length > 0) {
@@ -1203,14 +2070,47 @@
                             
                             console.log('Cell hover:', { colValue, rowValue });
                             
+                            // Reset styling from previous cell if any
+                            if (currentHoveredCell) {
+                                resetAxisLabelStyling(currentHoveredCell.amine, currentHoveredCell.acid);
+                            }
+                            
+                            // Store current cell
+                            currentHoveredCell = { amine: colValue, acid: rowValue };
+                            
                             // Highlight both row and column simultaneously
                             showCellHighlight(colValue, rowValue);
+                            
+                            // Show tooltips for corresponding axis labels
+                            showAxisTooltipsForCell(colValue, rowValue);
                         }
                     });
                     
                     // When leaving a cell
                     heatmapDiv.on('plotly_unhover', function(data) {
                         hideHighlight();
+                        scheduleHideTooltip(100);
+                        
+                        // Reset axis label styling
+                        if (currentHoveredCell) {
+                            resetAxisLabelStyling(currentHoveredCell.amine, currentHoveredCell.acid);
+                            currentHoveredCell = null;
+                        }
+                    });
+                    
+                    // When clicking a cell
+                    heatmapDiv.on('plotly_click', function(data) {
+                        if (data.points && data.points.length > 0) {
+                            const point = data.points[0];
+                            const acidName = point.y; // Row value (acid name)
+                            const amineName = point.x; // Column value (amine name)
+                            const reactionRate = point.customdata; // Original reaction rate (not normalized)
+                            
+                            console.log('Cell clicked:', { acidName, amineName, reactionRate });
+                            
+                            // Toggle cell selection for comparison
+                            toggleCellSelection(acidName, amineName, reactionRate);
+                        }
                     });
                     
                 }).then(() => {
@@ -1246,6 +2146,13 @@
                             }
                             
                             if (labelText && labelType && labelText.trim()) {
+                                // Clear any existing tooltips first
+                                hideMoleculeTooltip();
+                                if (tooltipTimeout) {
+                                    clearTimeout(tooltipTimeout);
+                                    tooltipTimeout = null;
+                                }
+                                
                                 event.target.style.cursor = 'pointer';
                                 showMoleculeTooltip(event, labelText.trim(), labelType);
                                 showHighlight(labelText.trim(), labelType);
@@ -1282,6 +2189,13 @@
                                 
                                 if (isAxisLabel) {
                                     textElement.addEventListener('mouseenter', function(event) {
+                                        // Clear any existing tooltips first
+                                        hideMoleculeTooltip();
+                                        if (tooltipTimeout) {
+                                            clearTimeout(tooltipTimeout);
+                                            tooltipTimeout = null;
+                                        }
+                                        
                                         textElement.style.cursor = 'pointer';
                                         textElement.style.fill = '#007acc';
                                         textElement.style.fontWeight = 'bold';
@@ -1301,6 +2215,11 @@
                         });
                         
                     }, 1000);
+                    
+                    // Refresh selected cell borders after heatmap is fully loaded
+                    setTimeout(() => {
+                        refreshSelectedCellBorders();
+                    }, 1500);
                 });
             })
             .catch(error => {

@@ -88,7 +88,7 @@ def get_heatmap_data():
             colorscale='Cividis',
             hovertemplate='<b>Acid Chloride:</b> %{y}<br>' +
                          '<b>Amine:</b> %{x}<br>' +
-                         '<b>Rate:</b> %{customdata:.2f} (1/M·min)<br>' +
+                         '<b>Rate:</b> %{customdata:.2f} (M⁻¹ · min⁻¹)<br>' +
                          '<extra></extra>',
             customdata=z_data,  # Use original data for hover
             showscale=False,  # Hide the colorbar/scale
@@ -113,7 +113,7 @@ def get_heatmap_data():
                 side='right'
             ),
             # Calculate dimensions for square cells - 125% larger
-            # 30 rows (acid chlorides) × 34 columns (amines)  
+            # 30 rows (acid chlorides) × 34 columns (amines)
             # Base cell size of 25 pixels (125% of 20px)
             width=34 * 30 + 100 + 30 + 70,  # Larger for better detail
             height=30 * 30 + 35 + 60,  # Larger for better detail
