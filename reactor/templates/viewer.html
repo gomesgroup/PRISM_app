@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file_info.name }} - STL Viewer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ file_info.name }}</h2>
+    <p>Size: {{ file_info.size_mb }} MB</p>
+    <a href="/" class="btn btn-secondary">← Back to List</a>
+</div>
+
+<div class="card">
+    <h3>3D Viewer</h3>
+    <div id="viewer"></div>
+    <div class="controls">
+        <button id="resetView" class="btn">Reset View</button>
+        <button id="toggleWireframe" class="btn">Toggle Wireframe</button>
+    </div>
+    <div class="info">
+        <div id="status">Loading...</div>
+        <div id="modelInfo" style="display: none;">
+            <strong>Triangles:</strong> <span id="triangleCount">-</span> | 
+            <strong>Vertices:</strong> <span id="vertexCount">-</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let scene, camera, renderer, controls, mesh;
+let wireframeMaterial, solidMaterial;
+
+function init() {
+    // Status update
+    document.getElementById('status').textContent = 'Initializing 3D viewer...';
+    
+    // Create scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff); // White background
+
+    // Get viewer element
+    const viewerElement = document.getElementById('viewer');
+    const width = viewerElement.clientWidth;
+    const height = 500;
+
+    // Create camera
+    camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+
+    // Create renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewerElement.appendChild(renderer.domElement);
+
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(10, 10, 10);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // Add orbit controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+
+    // Load STL file
+    loadSTL();
+
+    // Handle window resize
+    window.addEventListener('resize', onWindowResize);
+}
+
+function loadSTL() {
+    document.getElementById('status').textContent = 'Loading STL file...';
+    
+    const loader = new THREE.STLLoader();
+    const filename = '{{ file_info.name }}';
+    
+    loader.load(
+        '/serve/' + filename,
+        function(geometry) {
+            document.getElementById('status').textContent = 'Processing geometry...';
+            
+            // Center the geometry
+            geometry.computeBoundingBox();
+            const center = new THREE.Vector3();
+            geometry.boundingBox.getCenter(center);
+            geometry.translate(-center.x, -center.y, -center.z);
+
+            // Create materials - Grey mesh on white background
+            solidMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x888888, // Grey color
+                side: THREE.DoubleSide
+            });
+            
+            wireframeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x444444, // Darker grey for wireframe
+                wireframe: true,
+                side: THREE.DoubleSide
+            });
+
+            // Create mesh
+            mesh = new THREE.Mesh(geometry, solidMaterial);
+            scene.add(mesh);
+
+            // Position camera
+            const box = new THREE.Box3().setFromObject(mesh);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+            
+            camera.position.set(cameraZ, cameraZ, cameraZ);
+            camera.lookAt(0, 0, 0);
+            controls.update();
+
+            // Update model info
+            updateModelInfo(geometry);
+
+            // Start animation loop
+            animate();
+            
+            document.getElementById('status').textContent = 'Model loaded successfully!';
+            document.getElementById('modelInfo').style.display = 'block';
+        },
+        function(progress) {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            document.getElementById('status').textContent = `Loading: ${percent}%`;
+        },
+        function(error) {
+            console.error('Error loading STL:', error);
+            document.getElementById('status').textContent = 'Error loading STL file: ' + error.message;
+        }
+    );
+}
+
+function updateModelInfo(geometry) {
+    const triangles = geometry.attributes.position.count / 3;
+    const vertices = geometry.attributes.position.count;
+    
+    document.getElementById('triangleCount').textContent = triangles.toLocaleString();
+    document.getElementById('vertexCount').textContent = vertices.toLocaleString();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+    const viewerElement = document.getElementById('viewer');
+    const width = viewerElement.clientWidth;
+    const height = 500;
+    
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+}
+
+function resetView() {
+    if (mesh) {
+        const box = new THREE.Box3().setFromObject(mesh);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180);
+        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+        
+        camera.position.set(cameraZ, cameraZ, cameraZ);
+        camera.lookAt(0, 0, 0);
+        controls.reset();
+    }
+}
+
+function toggleWireframe() {
+    if (mesh) {
+        mesh.material = mesh.material === solidMaterial ? wireframeMaterial : solidMaterial;
+    }
+}
+
+// Event listeners
+document.getElementById('resetView').addEventListener('click', resetView);
+document.getElementById('toggleWireframe').addEventListener('click', toggleWireframe);
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', init);
+</script>
+{% endblock %} 

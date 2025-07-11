@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+
+{% block title %}Reactor Assembly Editor{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Reactor Assembly Editor</h1>
+    <p>Load and position {{ files|length }} reactor parts</p>
+    
+    <div class="assembly-controls">
+        <button id="loadAllParts" class="btn">Load All Parts</button>
+        <button id="resetAssembly" class="btn btn-secondary">Reset Assembly</button>
+        <button id="toggleGrid" class="btn btn-secondary">Toggle Grid</button>
+        <button id="toggleAxes" class="btn btn-secondary">Toggle Axes</button>
+        
+        <div class="save-load-section">
+            <input type="text" id="assemblyName" placeholder="Assembly name" class="input-field">
+            <button id="saveAssembly" class="btn">Save Assembly</button>
+            <select id="loadAssemblySelect" class="select-field">
+                <option value="">Load saved assembly...</option>
+            </select>
+            <button id="loadAssembly" class="btn btn-secondary">Load</button>
+        </div>
+    </div>
+</div>
+
+<div class="assembly-workspace">
+    <div class="viewer-section">
+        <div class="card">
+            <h3>Assembly Viewer</h3>
+            <div id="assemblyViewer"></div>
+            <div class="viewer-info">
+                <div id="assemblyStatus">Ready to load parts</div>
+                <div id="loadingProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <span id="progressText">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls-section">
+        <div class="card">
+            <h3>Part Controls</h3>
+            
+            <div class="part-selector">
+                <label>Selected Part:</label>
+                <select id="partSelector">
+                    <option value="">Select a part...</option>
+                </select>
+            </div>
+            
+            <div id="partControls" style="display: none;">
+                <div class="control-group">
+                    <h4>Position</h4>
+                    <div class="input-row">
+                        <label>X:</label>
+                        <input type="range" id="posX" min="-100" max="100" value="0" step="0.1">
+                        <span id="posXValue">0</span>
+                    </div>
+                    <div class="input-row">
+                        <label>Y:</label>
+                        <input type="range" id="posY" min="-100" max="100" value="0" step="0.1">
+                        <span id="posYValue">0</span>
+                    </div>
+                    <div class="input-row">
+                        <label>Z:</label>
+                        <input type="range" id="posZ" min="-100" max="100" value="0" step="0.1">
+                        <span id="posZValue">0</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Rotation</h4>
+                    <div class="input-row">
+                        <label>X:</label>
+                        <input type="range" id="rotX" min="0" max="360" value="0" step="1">
+                        <span id="rotXValue">0°</span>
+                    </div>
+                    <div class="input-row">
+                        <label>Y:</label>
+                        <input type="range" id="rotY" min="0" max="360" value="0" step="1">
+                        <span id="rotYValue">0°</span>
+                    </div>
+                    <div class="input-row">
+                        <label>Z:</label>
+                        <input type="range" id="rotZ" min="0" max="360" value="0" step="1">
+                        <span id="rotZValue">0°</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Scale</h4>
+                    <div class="input-row">
+                        <label>Scale:</label>
+                        <input type="range" id="scale" min="0.1" max="3" value="1" step="0.1">
+                        <span id="scaleValue">1x</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Part Actions</h4>
+                    <button id="resetPart" class="btn btn-small">Reset Part</button>
+                    <button id="hidePart" class="btn btn-small">Hide/Show</button>
+                    <button id="focusPart" class="btn btn-small">Focus Camera</button>
+                </div>
+            </div>
+            
+            <div class="parts-list">
+                <h4>Parts List</h4>
+                <div id="partsListContainer"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+class ReactorAssembly {
+    constructor() {
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.controls = null;
+        this.parts = new Map();
+        this.selectedPart = null;
+        this.grid = null;
+        this.axes = null;
+        this.container = document.getElementById('assemblyViewer');
+        
+        this.init();
+        this.setupEventListeners();
+        this.loadSavedAssemblies();
+    }
+    
+    init() {
+        // Create scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0xf0f0f0);
+        
+        // Get container dimensions
+        const width = this.container.clientWidth;
+        const height = 600;
+        
+        // Create camera
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        this.camera.position.set(50, 50, 50);
+        
+        // Create renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(width, height);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.container.appendChild(this.renderer.domElement);
+        
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        this.scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(50, 50, 50);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        this.scene.add(directionalLight);
+        
+        // Add orbit controls
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.1;
+        
+        // Add grid
+        this.createGrid();
+        this.createAxes();
+        
+        // Start animation loop
+        this.animate();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => this.onWindowResize());
+    }
+    
+    createGrid() {
+        this.grid = new THREE.GridHelper(200, 40, 0x888888, 0xcccccc);
+        this.scene.add(this.grid);
+    }
+    
+    createAxes() {
+        this.axes = new THREE.AxesHelper(30);
+        this.scene.add(this.axes);
+    }
+    
+    async loadAllParts() {
+        const files = {{ files | tojson }};
+        document.getElementById('assemblyStatus').textContent = 'Loading parts...';
+        document.getElementById('loadingProgress').style.display = 'block';
+        
+        const totalFiles = files.length;
+        let loadedFiles = 0;
+        
+        for (const file of files) {
+            try {
+                await this.loadPart(file.name);
+                loadedFiles++;
+                const progress = Math.round((loadedFiles / totalFiles) * 100);
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = progress + '%';
+            } catch (error) {
+                console.error(`Error loading ${file.name}:`, error);
+            }
+        }
+        
+        document.getElementById('loadingProgress').style.display = 'none';
+        document.getElementById('assemblyStatus').textContent = `${loadedFiles} parts loaded`;
+        this.updatePartsList();
+        this.updatePartSelector();
+    }
+    
+    loadPart(filename) {
+        return new Promise((resolve, reject) => {
+            const loader = new THREE.STLLoader();
+            
+            loader.load(
+                `/serve/${filename}`,
+                (geometry) => {
+                    // Center the geometry
+                    geometry.computeBoundingBox();
+                    const center = new THREE.Vector3();
+                    geometry.boundingBox.getCenter(center);
+                    geometry.translate(-center.x, -center.y, -center.z);
+                    
+                    // Create material
+                    const material = new THREE.MeshLambertMaterial({ 
+                        color: this.getPartColor(filename),
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    // Create mesh
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.name = filename;
+                    mesh.userData.filename = filename;
+                    mesh.userData.originalPosition = { x: 0, y: 0, z: 0 };
+                    mesh.userData.originalRotation = { x: 0, y: 0, z: 0 };
+                    mesh.userData.originalScale = 1;
+                    
+                    // Add to scene and store reference
+                    this.scene.add(mesh);
+                    this.parts.set(filename, mesh);
+                    
+                    resolve(mesh);
+                },
+                undefined,
+                reject
+            );
+        });
+    }
+    
+    getPartColor(filename) {
+        // Assign different colors to different parts for easy identification
+        const colors = [0x8888ff, 0x88ff88, 0xff8888, 0xffff88, 0xff88ff, 0x88ffff, 0xffaa44, 0xaa44ff, 0x44ffaa];
+        const hash = filename.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+        return colors[hash % colors.length];
+    }
+    
+    updatePartsList() {
+        const container = document.getElementById('partsListContainer');
+        container.innerHTML = '';
+        
+        this.parts.forEach((mesh, filename) => {
+            const partElement = document.createElement('div');
+            partElement.className = 'part-list-item';
+            partElement.innerHTML = `
+                <div class="part-name">${filename}</div>
+                <div class="part-actions">
+                    <button onclick="assembly.selectPart('${filename}')" class="btn-tiny">Select</button>
+                    <button onclick="assembly.togglePartVisibility('${filename}')" class="btn-tiny">Hide/Show</button>
+                </div>
+            `;
+            container.appendChild(partElement);
+        });
+    }
+    
+    updatePartSelector() {
+        const selector = document.getElementById('partSelector');
+        selector.innerHTML = '<option value="">Select a part...</option>';
+        
+        this.parts.forEach((mesh, filename) => {
+            const option = document.createElement('option');
+            option.value = filename;
+            option.textContent = filename;
+            selector.appendChild(option);
+        });
+    }
+    
+    selectPart(filename) {
+        this.selectedPart = filename;
+        const mesh = this.parts.get(filename);
+        
+        if (mesh) {
+            // Update part selector
+            document.getElementById('partSelector').value = filename;
+            
+            // Show controls
+            document.getElementById('partControls').style.display = 'block';
+            
+            // Update control values
+            this.updateControlValues(mesh);
+            
+            // Highlight selected part
+            this.highlightPart(mesh);
+        }
+    }
+    
+    updateControlValues(mesh) {
+        // Position
+        document.getElementById('posX').value = mesh.position.x;
+        document.getElementById('posY').value = mesh.position.y;
+        document.getElementById('posZ').value = mesh.position.z;
+        document.getElementById('posXValue').textContent = mesh.position.x.toFixed(1);
+        document.getElementById('posYValue').textContent = mesh.position.y.toFixed(1);
+        document.getElementById('posZValue').textContent = mesh.position.z.toFixed(1);
+        
+        // Rotation (convert from radians to degrees)
+        const rotX = THREE.MathUtils.radToDeg(mesh.rotation.x);
+        const rotY = THREE.MathUtils.radToDeg(mesh.rotation.y);
+        const rotZ = THREE.MathUtils.radToDeg(mesh.rotation.z);
+        document.getElementById('rotX').value = rotX;
+        document.getElementById('rotY').value = rotY;
+        document.getElementById('rotZ').value = rotZ;
+        document.getElementById('rotXValue').textContent = rotX.toFixed(0) + '°';
+        document.getElementById('rotYValue').textContent = rotY.toFixed(0) + '°';
+        document.getElementById('rotZValue').textContent = rotZ.toFixed(0) + '°';
+        
+        // Scale
+        document.getElementById('scale').value = mesh.scale.x;
+        document.getElementById('scaleValue').textContent = mesh.scale.x.toFixed(1) + 'x';
+    }
+    
+    highlightPart(mesh) {
+        // Reset all parts to normal opacity
+        this.parts.forEach(part => part.material.opacity = 0.8);
+        
+        // Highlight selected part
+        mesh.material.opacity = 1.0;
+    }
+    
+    updateSelectedPart() {
+        if (!this.selectedPart) return;
+        
+        const mesh = this.parts.get(this.selectedPart);
+        if (!mesh) return;
+        
+        // Update position
+        mesh.position.x = parseFloat(document.getElementById('posX').value);
+        mesh.position.y = parseFloat(document.getElementById('posY').value);
+        mesh.position.z = parseFloat(document.getElementById('posZ').value);
+        
+        // Update rotation (convert degrees to radians)
+        mesh.rotation.x = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotX').value));
+        mesh.rotation.y = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotY').value));
+        mesh.rotation.z = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rotZ').value));
+        
+        // Update scale
+        const scale = parseFloat(document.getElementById('scale').value);
+        mesh.scale.set(scale, scale, scale);
+        
+        // Update display values
+        document.getElementById('posXValue').textContent = mesh.position.x.toFixed(1);
+        document.getElementById('posYValue').textContent = mesh.position.y.toFixed(1);
+        document.getElementById('posZValue').textContent = mesh.position.z.toFixed(1);
+        document.getElementById('rotXValue').textContent = document.getElementById('rotX').value + '°';
+        document.getElementById('rotYValue').textContent = document.getElementById('rotY').value + '°';
+        document.getElementById('rotZValue').textContent = document.getElementById('rotZ').value + '°';
+        document.getElementById('scaleValue').textContent = scale.toFixed(1) + 'x';
+    }
+    
+    resetPart() {
+        if (!this.selectedPart) return;
+        
+        const mesh = this.parts.get(this.selectedPart);
+        if (!mesh) return;
+        
+        mesh.position.set(0, 0, 0);
+        mesh.rotation.set(0, 0, 0);
+        mesh.scale.set(1, 1, 1);
+        
+        this.updateControlValues(mesh);
+    }
+    
+    resetAssembly() {
+        this.parts.forEach(mesh => {
+            mesh.position.set(0, 0, 0);
+            mesh.rotation.set(0, 0, 0);
+            mesh.scale.set(1, 1, 1);
+            mesh.visible = true;
+            mesh.material.opacity = 0.8;
+        });
+        
+        if (this.selectedPart) {
+            const mesh = this.parts.get(this.selectedPart);
+            if (mesh) this.updateControlValues(mesh);
+        }
+    }
+    
+    togglePartVisibility(filename) {
+        const mesh = this.parts.get(filename);
+        if (mesh) {
+            mesh.visible = !mesh.visible;
+        }
+    }
+    
+    focusOnPart() {
+        if (!this.selectedPart) return;
+        
+        const mesh = this.parts.get(this.selectedPart);
+        if (!mesh) return;
+        
+        // Get bounding box of the part
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        
+        // Position camera to view the part
+        const distance = maxDim * 2;
+        this.camera.position.copy(center);
+        this.camera.position.add(new THREE.Vector3(distance, distance, distance));
+        this.camera.lookAt(center);
+        this.controls.target.copy(center);
+        this.controls.update();
+    }
+    
+    toggleGrid() {
+        this.grid.visible = !this.grid.visible;
+    }
+    
+    toggleAxes() {
+        this.axes.visible = !this.axes.visible;
+    }
+    
+    getAssemblyData() {
+        const assemblyData = {
+            name: document.getElementById('assemblyName').value || 'unnamed',
+            timestamp: new Date().toISOString(),
+            parts: {}
+        };
+        
+        this.parts.forEach((mesh, filename) => {
+            assemblyData.parts[filename] = {
+                position: { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z },
+                rotation: { x: mesh.rotation.x, y: mesh.rotation.y, z: mesh.rotation.z },
+                scale: { x: mesh.scale.x, y: mesh.scale.y, z: mesh.scale.z },
+                visible: mesh.visible
+            };
+        });
+        
+        return assemblyData;
+    }
+    
+    loadAssemblyData(assemblyData) {
+        Object.entries(assemblyData.parts).forEach(([filename, partData]) => {
+            const mesh = this.parts.get(filename);
+            if (mesh) {
+                mesh.position.set(partData.position.x, partData.position.y, partData.position.z);
+                mesh.rotation.set(partData.rotation.x, partData.rotation.y, partData.rotation.z);
+                mesh.scale.set(partData.scale.x, partData.scale.y, partData.scale.z);
+                mesh.visible = partData.visible;
+            }
+        });
+        
+        if (this.selectedPart) {
+            const mesh = this.parts.get(this.selectedPart);
+            if (mesh) this.updateControlValues(mesh);
+        }
+    }
+    
+    async saveAssembly() {
+        const assemblyData = this.getAssemblyData();
+        
+        try {
+            const response = await fetch('/api/assembly/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(assemblyData)
+            });
+            
+            const result = await response.json();
+            document.getElementById('assemblyStatus').textContent = result.message;
+            this.loadSavedAssemblies();
+        } catch (error) {
+            console.error('Error saving assembly:', error);
+            document.getElementById('assemblyStatus').textContent = 'Error saving assembly';
+        }
+    }
+    
+    async loadSavedAssemblies() {
+        try {
+            const response = await fetch('/api/assembly/list');
+            const configs = await response.json();
+            
+            const select = document.getElementById('loadAssemblySelect');
+            select.innerHTML = '<option value="">Load saved assembly...</option>';
+            
+            configs.forEach(config => {
+                const option = document.createElement('option');
+                option.value = config;
+                option.textContent = config;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading saved assemblies:', error);
+        }
+    }
+    
+    async loadSavedAssembly() {
+        const configName = document.getElementById('loadAssemblySelect').value;
+        if (!configName) return;
+        
+        try {
+            const response = await fetch(`/api/assembly/load/${configName}`);
+            const assemblyData = await response.json();
+            
+            this.loadAssemblyData(assemblyData);
+            document.getElementById('assemblyName').value = assemblyData.name;
+            document.getElementById('assemblyStatus').textContent = `Loaded assembly: ${assemblyData.name}`;
+        } catch (error) {
+            console.error('Error loading assembly:', error);
+            document.getElementById('assemblyStatus').textContent = 'Error loading assembly';
+        }
+    }
+    
+    setupEventListeners() {
+        // Control sliders
+        ['posX', 'posY', 'posZ', 'rotX', 'rotY', 'rotZ', 'scale'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => this.updateSelectedPart());
+        });
+        
+        // Part selector
+        document.getElementById('partSelector').addEventListener('change', (e) => {
+            if (e.target.value) this.selectPart(e.target.value);
+        });
+        
+        // Buttons
+        document.getElementById('loadAllParts').addEventListener('click', () => this.loadAllParts());
+        document.getElementById('resetAssembly').addEventListener('click', () => this.resetAssembly());
+        document.getElementById('toggleGrid').addEventListener('click', () => this.toggleGrid());
+        document.getElementById('toggleAxes').addEventListener('click', () => this.toggleAxes());
+        document.getElementById('resetPart').addEventListener('click', () => this.resetPart());
+        document.getElementById('hidePart').addEventListener('click', () => this.togglePartVisibility(this.selectedPart));
+        document.getElementById('focusPart').addEventListener('click', () => this.focusOnPart());
+        document.getElementById('saveAssembly').addEventListener('click', () => this.saveAssembly());
+        document.getElementById('loadAssembly').addEventListener('click', () => this.loadSavedAssembly());
+    }
+    
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+    }
+    
+    onWindowResize() {
+        const width = this.container.clientWidth;
+        const height = 600;
+        
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
+    }
+}
+
+// Global assembly instance
+let assembly;
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    assembly = new ReactorAssembly();
+});
+</script>
+{% endblock %} 
