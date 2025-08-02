@@ -15,7 +15,7 @@
             font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
             position: relative;
             overflow-x: hidden;
-            overflow-y: auto;
+            overflow-y: hidden;
             background: white;
             color: #333;
         }
@@ -132,7 +132,7 @@
         .left-sidebar {
             position: fixed;
             top: 50%;
-            left: 60px;
+            left: 72px;
             width: 720px;
             z-index: 100;
             padding: 0;
@@ -146,7 +146,21 @@
             color: #333;
             margin: 0 0 60px 0;
             text-align: justify;
-            font-weight: 400;
+            font-weight: 200;
+            position: relative;
+        }
+
+        .description-text::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -30px;
+            right: -30px;
+            bottom: -20px;
+            background: rgba(255, 255, 255, 0.85);
+            filter: blur(20px);
+            z-index: -1;
+            border-radius: 20px;
         }
 
         /* Toggle Button */
@@ -362,7 +376,7 @@
         
         <!-- Toggle Button -->
         <div class="toggle-container">
-            <button id="explodeToggle" class="toggle-btn">Explode Reactor</button>
+            <button id="explodeToggle" class="toggle-btn">Exploded View</button>
         </div>
     </div>
 
@@ -1006,7 +1020,7 @@
             const button = document.getElementById('explodeToggle');
             const labels = document.getElementById('componentLabels');
             
-            button.textContent = isExploded ? 'Assemble Reactor' : 'Explode Reactor';
+            button.textContent = isExploded ? 'Assembled View' : 'Exploded View';
             
             // Keep labels visible in both states for consistent interaction
             labels.classList.add('visible');
@@ -1028,7 +1042,7 @@
             
             // Update button text immediately and start label animation
             const button = document.getElementById('explodeToggle');
-            button.textContent = isExploded ? 'Assemble Reactor' : 'Explode Reactor';
+            button.textContent = isExploded ? 'Assembled View' : 'Exploded View';
             animateLabelsToPosition();
             
             // Start reactor animation with both current and target states
