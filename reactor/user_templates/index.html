@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactor Visualization</title>
+    <!-- Three.js for 3D rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            position: relative;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: white;
+            color: #333;
+        }
+
+        /* Animated Background */
+        .game-of-life-container {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .grid-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 12px;
+            transform: scale(1);
+            position: relative;
+            z-index: 0;
+            will-change: transform;
+            opacity: 0.5;
+        }
+
+        .grid-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .cell {
+            transition: background-color 1200ms ease-in-out;
+            will-change: background-color;
+            border-radius: 2px;
+            width: 80px;
+            height: 80px;
+        }
+
+        /* Very Large Screens (Desktop monitors) */
+        @media (min-width: 2560px) {
+            .cell {
+                width: 80px !important;
+                height: 80px !important;
+            }
+            
+            .grid-row {
+                gap: 16px;
+            }
+
+            .grid {
+                gap: 12px;
+            }
+        }
+
+        /* Small Laptop Screens */
+        @media (max-width: 1024px) {
+            .cell {
+                width: 50px !important;
+                height: 50px !important;
+            }
+
+            .grid {
+                gap: 6px;
+            }
+
+            .grid-row {
+                gap: 8px;
+            }
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .cell {
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .grid {
+                gap: 4px;
+            }
+
+            .grid-row {
+                gap: 6px;
+            }
+        }
+
+        /* 3D Visualization Container */
+        .reactor-container {
+            position: absolute;
+            transform: translateX(650px) translateY(40px);
+            z-index: 10;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #reactor-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Left Sidebar */
+        .left-sidebar {
+            position: fixed;
+            top: 50%;
+            left: 60px;
+            width: 720px;
+            z-index: 100;
+            padding: 0;
+            transform: translateY(-50%);
+        }
+
+        .description-text {
+            font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 28px;
+            line-height: 1.7;
+            color: #333;
+            margin: 0 0 60px 0;
+            text-align: justify;
+            font-weight: 400;
+        }
+
+        /* Toggle Button */
+        .toggle-container {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .toggle-btn {
+            background: #000;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 32px;
+            font-size: 24px;
+            font-weight: 200;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+            width: auto;
+            display: inline-block;
+        }
+
+        .toggle-btn:hover {
+            background: #333;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.35);
+        }
+
+        .toggle-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Header Styles */
+        .header-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            text-align: center;
+            padding: 1.5rem 0;
+            width: 100%;
+            animation: fadeIn 1.2s ease-out forwards;
+            transition: transform 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 0) 100%);
+        }
+
+        .title-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            padding-bottom: 1rem;
+        }
+
+        .title {
+            font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 3.2rem;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.03em;
+            color: #111;
+            padding-right: 1.5rem;
+            animation: slideInLeft 1s ease-out forwards;
+            background: linear-gradient(135deg, #000 0%, #333 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0px 2px 2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            text-align: right;
+        }
+
+        .subtitle-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            margin-left: 0.5rem;
+            border-left: 2px solid rgba(0, 0, 0, 0.2);
+            padding-left: 1.5rem;
+            animation: slideInRight 1s ease-out forwards;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+        }
+
+        .subtitle {
+            font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 300;
+            margin: 0;
+            letter-spacing: -0.01em;
+            color: #333;
+            line-height: 1.4;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInLeft {
+            from { 
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from { 
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Component Labels */
+        .component-labels {
+            position: fixed;
+            right: 25px;
+            top: 0;
+            width: 300px;
+            height: 100vh;
+            z-index: 150;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .component-labels.visible {
+            opacity: 1;
+        }
+
+        .component-label {
+            position: absolute;
+            left: 0;
+            color: black;
+            font-family: 'Avenir', 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+            font-size: 20px;
+            font-weight: 100;
+            white-space: nowrap;
+        }
+
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            color: #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="game-of-life-container">
+        <div class="grid-container">
+            <div class="grid" id="gameGrid">
+                <!-- Grid cells will be generated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-container">
+        <div class="title-wrapper">
+            <h1 class="title">Experiment</h1>
+            <div class="subtitle-wrapper">
+                <h2 class="subtitle">Visualize the</h2>
+                <h2 class="subtitle">reaction setup</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Left Sidebar -->
+    <div class="left-sidebar">
+        <p class="description-text">
+            Amidation rates were measured using custom-made reactors consisting of mainly 3D printed components, plus strip LEDs, a Raspberry Pi computer running a Python script, and a BME-280 sensor for real-time monitoring of temperature and humidity.
+        </p>
+        
+        <!-- Toggle Button -->
+        <div class="toggle-container">
+            <button id="explodeToggle" class="toggle-btn">Explode Reactor</button>
+        </div>
+    </div>
+
+    <!-- Component Labels -->
+    <div class="component-labels" id="componentLabels">
+        <div class="component-label" id="label-legs" style="top: 15%;">Legs</div>
+        <div class="component-label" id="label-wellplate" style="top: 25%;">96 Well Plate</div>
+        <div class="component-label" id="label-camerabottom" style="top: 35%;">Camera Mount Bottom</div>
+        <div class="component-label" id="label-cameratop" style="top: 45%;">Camera Mount Top</div>
+        <div class="component-label" id="label-lightcap" style="top: 55%;">Light Cap</div>
+        <div class="component-label" id="label-lightgradient" style="top: 65%;">Light Gradient</div>
+        <div class="component-label" id="label-reactorlid" style="top: 75%;">Reactor Lid</div>
+        <div class="component-label" id="label-lightfilter" style="top: 85%;">Light Filter & Funnel</div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading">Loading 3D Model...</div>
+
+    <!-- 3D Reactor Container -->
+    <div class="reactor-container">
+        <canvas id="reactor-canvas"></canvas>
+    </div>
+
+    <script>
+        // Game of Life Implementation
+        class GameOfLife {
+            constructor() {
+                this.GRID_SIZE = this.getGridSize();
+                this.grid = [];
+                this.isVisible = true;
+                this.animationId = null;
+                this.lastUpdate = 0;
+                this.rules = { survive: [2, 3], birth: [3, 6] }; // highlife rules
+                
+                this.initializeGrid();
+                this.setupIntersectionObserver();
+                this.startAnimation();
+            }
+
+            getGridSize() {
+                const width = window.innerWidth;
+                if (width <= 768) return 10;      // Mobile
+                if (width <= 1024) return 12;     // Small laptop
+                if (width >= 2560) return 16;     // Very large screens
+                return 14;                         // Standard laptop/desktop
+            }
+
+            createCell(active) {
+                return {
+                    active: active,
+                    intensity: active ? 0.7 : 0,
+                    age: 0,
+                    energy: Math.random() * 0.7
+                };
+            }
+
+            initializeGrid() {
+                const density = 0.4;
+                this.grid = Array(this.GRID_SIZE).fill(null).map(() => 
+                    Array(this.GRID_SIZE).fill(null).map(() => 
+                        this.createCell(Math.random() < density)
+                    )
+                );
+                this.renderGrid();
+            }
+
+            setupIntersectionObserver() {
+                const observer = new IntersectionObserver(
+                    ([entry]) => {
+                        this.isVisible = entry.isIntersecting;
+                    },
+                    { threshold: 0.1 }
+                );
+
+                const container = document.querySelector('.game-of-life-container');
+                if (container) {
+                    observer.observe(container);
+                }
+            }
+
+            getNeighbors(x, y) {
+                let count = 0;
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue;
+                        const newX = x + i;
+                        const newY = y + j;
+                        if (newX >= 0 && newX < this.GRID_SIZE && newY >= 0 && newY < this.GRID_SIZE) {
+                            if (this.grid[newY][newX].active) {
+                                count++;
+                            }
+                        }
+                    }
+                }
+                return count;
+            }
+
+            applySymmetry(newGrid) {
+                const mid = Math.floor(this.GRID_SIZE / 2);
+                for (let y = 0; y < mid; y++) {
+                    for (let x = 0; x < mid; x++) {
+                        newGrid[y][this.GRID_SIZE-1-x] = {...newGrid[y][x]};
+                        newGrid[this.GRID_SIZE-1-y][x] = {...newGrid[y][x]};
+                        newGrid[this.GRID_SIZE-1-y][this.GRID_SIZE-1-x] = {...newGrid[y][x]};
+                    }
+                }
+                return newGrid;
+            }
+
+            updateGrid() {
+                let newGrid = this.grid.map((row, y) => 
+                    row.map((cell, x) => {
+                        const neighbors = this.getNeighbors(x, y);
+                        let nextActive = cell.active;
+                        
+                        if (cell.active) {
+                            nextActive = this.rules.survive.includes(neighbors);
+                        } else {
+                            nextActive = this.rules.birth.includes(neighbors);
+                        }
+
+                        // Add random activation chance
+                        if (!nextActive && Math.random() < 0.001) {
+                            nextActive = true;
+                        }
+
+                        // Calculate wave effect
+                        const time = Date.now() * 0.0003;
+                        const waveEffect = Math.sin(time + (x + y) * 0.1) * 0.05;
+                        const xDiff = x - this.GRID_SIZE/2;
+                        const yDiff = y - this.GRID_SIZE/2;
+                        const distanceToCenter = Math.sqrt(xDiff * xDiff + yDiff * yDiff) / (this.GRID_SIZE * 0.707);
+                        
+                        // Calculate intensity changes
+                        let nextIntensity = 0;
+                        if (nextActive) {
+                            if (!cell.active) {
+                                nextIntensity = 0.1;  // Start lower for smoother fade-in
+                            } else {
+                                nextIntensity = Math.min(0.7, cell.intensity + 0.05);  // Slower ramp up
+                            }
+                        } else if (cell.active) {
+                            nextIntensity = Math.max(0, cell.intensity - 0.05);  // Slower fade out
+                            if (nextIntensity < 0.05) nextIntensity = 0;
+                        }
+                        
+                        const nextEnergy = Math.max(0, Math.min(0.7,
+                            (cell.energy * 0.95) + (nextActive ? 0.05 : -0.05) +
+                            (waveEffect * (1 - distanceToCenter))
+                        ));
+
+                        return {
+                            active: nextActive || nextIntensity > 0,
+                            intensity: nextIntensity,
+                            age: nextActive ? (cell.active ? cell.age + 1 : 0) : 0,
+                            energy: nextEnergy
+                        };
+                    })
+                );
+
+                // Check if we need to reset
+                let activeCount = 0;
+                for (let y = 0; y < this.GRID_SIZE; y += 2) {
+                    for (let x = 0; x < this.GRID_SIZE; x += 2) {
+                        if (newGrid[y][x].active) activeCount++;
+                    }
+                }
+                
+                const cellsChecked = (this.GRID_SIZE/2) * (this.GRID_SIZE/2);
+                if (activeCount > cellsChecked * 0.9 || activeCount < cellsChecked * 0.05) {
+                    this.initializeGrid();
+                    return;
+                }
+
+                this.grid = this.applySymmetry(newGrid);
+                this.renderGrid();
+            }
+
+            renderGrid() {
+                const gridElement = document.getElementById('gameGrid');
+                if (!gridElement) return;
+
+                // Create grid structure only once
+                if (gridElement.children.length === 0) {
+                    this.grid.forEach((row, y) => {
+                        const rowElement = document.createElement('div');
+                        rowElement.className = 'grid-row';
+                        
+                        row.forEach((cell, x) => {
+                            const cellElement = document.createElement('div');
+                            cellElement.className = 'cell';
+                            cellElement.dataset.x = x;
+                            cellElement.dataset.y = y;
+                            rowElement.appendChild(cellElement);
+                        });
+                        
+                        gridElement.appendChild(rowElement);
+                    });
+                }
+
+                // Update existing cells smoothly
+                this.grid.forEach((row, y) => {
+                    row.forEach((cell, x) => {
+                        const cellElement = gridElement.children[y].children[x];
+                        
+                        const edgeFade = Math.min(x, y, this.GRID_SIZE - x - 1, this.GRID_SIZE - y - 1) / (this.GRID_SIZE / 2);
+                        const isActive = cell.active;
+                        
+                        const opacityMultiplier = 1.0;
+                        const bgColor = isActive 
+                            ? `rgba(23, 23, 23, ${Math.min(0.3, cell.intensity * edgeFade * opacityMultiplier)})` 
+                            : `rgba(255, 255, 255, ${Math.min(0.3, cell.intensity * edgeFade * opacityMultiplier)})`;
+                        
+                        cellElement.style.backgroundColor = bgColor;
+                    });
+                });
+            }
+
+            startAnimation() {
+                const animate = (timestamp) => {
+                    if (timestamp - this.lastUpdate >= 1500) { // Update every 1.5 seconds (slower)
+                        this.lastUpdate = timestamp;
+                        if (this.isVisible) {
+                            this.updateGrid();
+                        }
+                    }
+                    
+                    this.animationId = requestAnimationFrame(animate);
+                };
+                
+                this.animationId = requestAnimationFrame(animate);
+            }
+
+            destroy() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+        }
+
+        // Initialize Game of Life
+        let gameOfLife;
+        document.addEventListener('DOMContentLoaded', function() {
+            gameOfLife = new GameOfLife();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (gameOfLife) {
+                const newGridSize = gameOfLife.getGridSize();
+                if (newGridSize !== gameOfLife.GRID_SIZE) {
+                    gameOfLife.GRID_SIZE = newGridSize;
+                    gameOfLife.initializeGrid();
+                }
+            }
+            // Resize 3D scene
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // 3D Reactor Visualization
+        let scene, camera, renderer, controls, model;
+        let originalPositions = new Map();
+        let explosionPreset = null;
+        let isExploded = false;
+        let isAnimating = false;
+
+        // Initialize 3D scene
+        function init3D() {
+            const canvas = document.getElementById('reactor-canvas');
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = null; // Transparent to show Game of Life background
+            
+            // Camera setup - narrower field of view to make reactor appear larger
+            camera = new THREE.PerspectiveCamera(20, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas, 
+                alpha: true, // Enable transparency
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Enhanced lighting setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            // Main directional light with shadows
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(10, 10, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+            
+            // Fill light from the opposite side
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight.position.set(-5, 5, -5);
+            scene.add(fillLight);
+            
+            // Rim light for nice edge definition
+            const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            rimLight.position.set(0, -10, 10);
+            scene.add(rimLight);
+            
+            // Controls - disable all user interaction
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enabled = false; // Disable all controls (rotation, zoom, pan)
+            
+            // Load explosion preset
+            loadExplosionPreset();
+        }
+
+        // Load explosion preset from API
+        async function loadExplosionPreset() {
+            try {
+                const response = await fetch('/api/explosion-preset');
+                explosionPreset = await response.json();
+                console.log('Explosion preset loaded:', explosionPreset);
+                
+                // Apply camera settings if available
+                if (explosionPreset.cameraSettings) {
+                    const pos = explosionPreset.cameraSettings.position;
+                    const target = explosionPreset.cameraSettings.target;
+                    camera.position.set(pos.x, pos.y, pos.z);
+                    camera.lookAt(target.x, target.y, target.z);
+                }
+                
+                // Load the 3D model
+                load3DModel();
+            } catch (error) {
+                console.error('Error loading explosion preset:', error);
+                // Fallback to loading model without preset
+                load3DModel();
+            }
+        }
+
+        // Load 3D model
+        function load3DModel() {
+            const loader = new THREE.GLTFLoader();
+            
+            loader.load('/assembly/Assem2.gltf', 
+                function(gltf) {
+                    model = gltf.scene;
+                    
+                    // Fix orientation - rotate the model to correct upside-down issue
+                    model.rotation.x = Math.PI; // Rotate 180 degrees around X-axis to flip upright
+                    
+                    // Override materials to dark gray
+                    const darkGrayMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0x555555, // Dark gray color
+                        transparent: false
+                    });
+                    
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = darkGrayMaterial;
+                            child.castShadow = false;
+                            child.receiveShadow = false;
+                        }
+                    });
+                    
+                    // Store original positions
+                    storeOriginalPositions(model);
+                    
+                    // Add model to scene
+                    scene.add(model);
+                    
+                    // Hide loading indicator
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    console.log('3D Model loaded successfully');
+                    
+                    // Start render loop
+                    animate3D();
+                },
+                function(progress) {
+                    console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+                },
+                function(error) {
+                    console.error('Error loading 3D model:', error);
+                    document.getElementById('loading').textContent = 'Error loading 3D model';
+                }
+            );
+        }
+
+        // Store original positions of all meshes
+        function storeOriginalPositions(object) {
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    originalPositions.set(child.uuid, {
+                        x: child.position.x,
+                        y: child.position.y,
+                        z: child.position.z
+                    });
+                }
+            });
+        }
+
+        // Get component name for grouping
+        function getComponentName(child) {
+            let componentName = child.name || child.parent.name || 'Unknown';
+            
+            // Group leg parts together
+            if (componentName.includes('Legs-')) {
+                componentName = 'Legs (Both)';
+            }
+            // Group the 96 well plate parts together
+            else if (componentName === 'v1-96wellplate-1' || componentName.includes('mesh_3')) {
+                componentName = '96 Well Plate';
+            }
+            
+            return componentName;
+        }
+
+        // Apply explosion offsets to components
+        function applyExplosion(progress = 1) {
+            if (!model || !explosionPreset || !explosionPreset.componentOffsets) return;
+            
+            model.traverse((child) => {
+                if (child.isMesh && originalPositions.has(child.uuid)) {
+                    const componentName = getComponentName(child);
+                    const originalPos = originalPositions.get(child.uuid);
+                    const offset = explosionPreset.componentOffsets[componentName] || 0;
+                    
+                    // Interpolate between original position and exploded position
+                    child.position.y = originalPos.y + (offset * progress);
+                }
+            });
+        }
+
+        // Animate explosion/assembly
+        function animateExplosion(targetState) {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            const startTime = Date.now();
+            // Use animation speed from preset, with fallback to 2 seconds
+            const speed = explosionPreset?.animationSpeed || 2.0;
+            const duration = (2000 / speed); // Faster speed = shorter duration
+            const startProgress = isExploded ? 1 : 0;
+            const endProgress = targetState ? 1 : 0;
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const rawProgress = Math.min(elapsed / duration, 1);
+                
+                // Easing function for smooth animation
+                const easedProgress = 0.5 - Math.cos(rawProgress * Math.PI) / 2;
+                
+                const currentProgress = startProgress + (endProgress - startProgress) * easedProgress;
+                applyExplosion(currentProgress);
+                
+                if (rawProgress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    isExploded = targetState;
+                    isAnimating = false;
+                    updateToggleButton();
+                }
+            }
+            
+            animate();
+        }
+
+        // Update toggle button text and labels
+        function updateToggleButton() {
+            const button = document.getElementById('explodeToggle');
+            const labels = document.getElementById('componentLabels');
+            
+            button.textContent = isExploded ? 'Assemble Reactor' : 'Explode Reactor';
+            
+            // Show/hide labels based on explosion state
+            if (isExploded) {
+                labels.classList.add('visible');
+            } else {
+                labels.classList.remove('visible');
+            }
+        }
+
+        // Toggle explosion
+        function toggleExplosion() {
+            if (isAnimating || !model) return;
+            animateExplosion(!isExploded);
+        }
+
+        // 3D Animation loop
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Initialize 3D scene when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            init3D();
+        });
+
+        // Add event listener to toggle button
+        document.getElementById('explodeToggle').addEventListener('click', toggleExplosion);
+    </script>
+</body>
+</html>

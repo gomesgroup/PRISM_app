@@ -1,230 +1,924 @@
-{% extends "base.html" %}
-
-{% block title %}STL File Grid{% endblock %}
-
-{% block content %}
-<div class="card">
-    <h1>STL Files</h1>
-    <p>{{ files|length }} files found</p>
-    
-    <div class="assembly-controls">
-        <a href="/assembly" class="btn">🔧 Assembly Editor</a>
-        <span class="separator">|</span>
-        <span>Individual part visualization below</span>
-    </div>
-</div>
-
-{% if files %}
-<div class="file-list">
-    {% for file in files %}
-    <div class="file-item-viewer">
-        <h3>{{ file.name }}</h3>
-        <p>Size: {{ file.size_mb }} MB</p>
-        <div class="viewer-container" id="viewer-{{ loop.index }}" data-filename="{{ file.name }}"></div>
-        <div class="viewer-info">
-            <div class="viewer-status" id="status-{{ loop.index }}">Loading...</div>
-            <div class="viewer-controls">
-                <button onclick="resetView({{ loop.index }})" class="btn-small">Reset</button>
-                <button onclick="toggleWireframe({{ loop.index }})" class="btn-small">Wireframe</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactor 3D Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            bottom: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            width: 420px;
+            max-width: 420px;
+            font-size: 14px;
+            z-index: 100;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 200;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+            border-left: 3px solid #007bff;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+            height: 18px;
+        }
+        
+        .control-group small {
+            color: #bbb;
+            font-size: 11px;
+        }
+        
+        .stats {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #555;
+        }
+        
+        .stats div {
+            margin-bottom: 5px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 3px;
+            font-size: 12px;
+            transition: background-color 0.2s;
+            min-width: 80px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .control-group button {
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .component-slider {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 13px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .component-slider label {
+            flex: 0 0 140px;
+            margin: 0;
+            margin-right: 12px;
+            font-weight: normal;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .component-slider input[type="range"] {
+            flex: 1;
+            margin: 0;
+            margin-right: 10px;
+            height: 20px;
+        }
+        
+        .component-slider input[type="number"] {
+            flex: 0 0 70px;
+            margin: 0;
+            margin-right: 8px;
+            padding: 4px 6px;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .component-slider span {
+            flex: 0 0 45px;
+            text-align: right;
+            font-family: monospace;
+            color: #bbb;
+            font-size: 11px;
+        }
+        
+        #explosion-controls {
+            max-height: none;
+            border: 1px solid #555;
+            padding: 12px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            margin-top: 10px;
+        }
+        
+        #component-sliders {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 5px;
+        }
+        
+        /* Custom scrollbar for better appearance */
+        #component-sliders::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #component-sliders::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        #component-sliders::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        #component-sliders::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            z-index: 300;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loading">Loading Reactor Model...</div>
+        <div id="error"></div>
+        
+        <div id="canvas-container"></div>
+        
+        <div id="ui">
+            <h3>Reactor 3D Viewer</h3>
+            
+            <div class="control-group">
+                <label>View Controls:</label>
+                <button onclick="toggleWireframe()">Toggle Wireframe</button>
+                <button onclick="resetCamera()">Reset View</button>
+                <button onclick="toggleAutoRotate()">Auto Rotate</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Model Orientation:</label>
+                <button onclick="flipX()">Flip X</button>
+                <button onclick="flipY()">Flip Y</button>
+                <button onclick="flipZ()">Flip Z</button>
+                <button onclick="resetOrientation()">Reset Orientation</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Exploded View:</label>
+                <button onclick="toggleExplodedView()">Toggle Exploded View</button>
+                <button onclick="animateExplosion()">Animate Explosion</button>
+                <button onclick="resetAllOffsets()">Reset All Offsets</button>
+                <input type="range" id="animationSpeed" min="0.5" max="5" step="0.1" value="2">
+                <small>Animation Speed</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Presets:</label>
+                <button onclick="savePreset()">Save Preset</button>
+                <button onclick="loadPreset()">Load Preset</button>
+                <input type="file" id="presetFile" accept=".json" style="display: none;" onchange="handlePresetFile(event)">
+            </div>
+            
+            <div class="control-group">
+                <label>Environment:</label>
+                <input type="range" id="lightIntensity" min="0" max="3" step="0.1" value="1">
+                <small>Light Intensity</small>
+            </div>
+            
+            <div class="control-group" id="explosion-controls" style="display: none;">
+                <label><strong>Component Y-Offsets:</strong></label>
+                <div id="component-sliders"></div>
+            </div>
+            
+            <div class="stats">
+                <div><strong>Model Info:</strong></div>
+                <div id="node-count">Nodes: Loading...</div>
+                <div id="mesh-count">Meshes: Loading...</div>
+                <div id="material-count">Materials: Loading...</div>
+                <div id="buffer-count">Buffers: Loading...</div>
             </div>
         </div>
     </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="card">
-    <h3>No STL files found</h3>
-    <p>Add STL files to the STL/ directory to get started.</p>
-</div>
-{% endif %}
-{% endblock %}
 
-{% block extra_scripts %}
-<script>
-// Global arrays to store viewers
-let viewers = [];
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-class STLViewer {
-    constructor(index, filename) {
-        this.index = index;
-        this.filename = filename;
-        this.scene = null;
-        this.camera = null;
-        this.renderer = null;
-        this.controls = null;
-        this.mesh = null;
-        this.wireframeMaterial = null;
-        this.solidMaterial = null;
-        this.container = document.getElementById(`viewer-${index}`);
-        this.statusElement = document.getElementById(`status-${index}`);
-        
-        this.init();
-    }
-    
-    init() {
-        this.statusElement.textContent = 'Initializing...';
-        
-        // Create scene
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xffffff); // White background
-        
-        // Get container dimensions
-        const width = this.container.clientWidth;
-        const height = 250;
-        
-        // Create camera
-        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-        
-        // Create renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(width, height);
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.container.appendChild(this.renderer.domElement);
-        
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
-        this.scene.add(ambientLight);
-        
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        directionalLight.position.set(10, 10, 10);
-        directionalLight.castShadow = true;
-        this.scene.add(directionalLight);
-        
-        // Add orbit controls
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.1;
-        this.controls.enableZoom = true;
-        this.controls.enablePan = true;
-        
-        // Load STL file
-        this.loadSTL();
-    }
-    
-    loadSTL() {
-        this.statusElement.textContent = 'Loading...';
-        
-        const loader = new THREE.STLLoader();
-        
-        loader.load(
-            '/serve/' + this.filename,
-            (geometry) => {
-                this.statusElement.textContent = 'Processing...';
-                
-                // Center the geometry
-                geometry.computeBoundingBox();
-                const center = new THREE.Vector3();
-                geometry.boundingBox.getCenter(center);
-                geometry.translate(-center.x, -center.y, -center.z);
-                
-                // Create materials - Grey mesh on white background
-                this.solidMaterial = new THREE.MeshLambertMaterial({ 
-                    color: 0x888888, // Grey color
-                    side: THREE.DoubleSide
-                });
-                
-                this.wireframeMaterial = new THREE.MeshBasicMaterial({ 
-                    color: 0x444444, // Darker grey for wireframe
-                    wireframe: true,
-                    side: THREE.DoubleSide
-                });
-                
-                // Create mesh
-                this.mesh = new THREE.Mesh(geometry, this.solidMaterial);
-                this.scene.add(this.mesh);
-                
-                // Position camera
-                const box = new THREE.Box3().setFromObject(this.mesh);
-                const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const fov = this.camera.fov * (Math.PI / 180);
-                const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
-                
-                this.camera.position.set(cameraZ, cameraZ, cameraZ);
-                this.camera.lookAt(0, 0, 0);
-                this.controls.update();
-                
-                // Start animation loop
-                this.animate();
-                
-                this.statusElement.textContent = 'Ready';
-            },
-            (progress) => {
-                const percent = Math.round((progress.loaded / progress.total) * 100);
-                this.statusElement.textContent = `Loading: ${percent}%`;
-            },
-            (error) => {
-                console.error('Error loading STL:', error);
-                this.statusElement.textContent = 'Error loading file';
-            }
-        );
-    }
-    
-    animate() {
-        requestAnimationFrame(() => this.animate());
-        this.controls.update();
-        this.renderer.render(this.scene, this.camera);
-    }
-    
-    resetView() {
-        if (this.mesh) {
-            const box = new THREE.Box3().setFromObject(this.mesh);
-            const size = box.getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const fov = this.camera.fov * (Math.PI / 180);
-            const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+    <script>
+        let scene, camera, renderer, controls, model;
+        let directionalLight, ambientLight;
+        let autoRotate = false;
+        let wireframeMode = false;
+        let isExploded = false;
+        let isAnimating = false;
+        let originalPositions = new Map(); // Store original positions of parts
+        let explodedOffsets = new Map(); // Store manual Y-offsets for exploded view
+        let componentNames = []; // List of all component names
+
+        // Initialize the 3D scene
+        function init() {
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x2a2a2a);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0.5, 0.5, 0.8);
+
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.toneMappingExposure = 1;
+
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Controls setup
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 2.0;
+
+            // Lighting setup
+            ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 5, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Additional lights for better visibility
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            light2.position.set(-5, 3, -5);
+            scene.add(light2);
+
+            const light3 = new THREE.DirectionalLight(0xffffff, 0.3);
+            light3.position.set(0, -5, 0);
+            scene.add(light3);
+
+            // Load the model
+            loadModel();
+
+            // Load model info
+            loadModelInfo();
+
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            document.getElementById('lightIntensity').addEventListener('input', function(e) {
+                directionalLight.intensity = parseFloat(e.target.value);
+            });
+
+            // Start render loop
+            animate();
+        }
+
+        function loadModel() {
+            const loader = new THREE.GLTFLoader();
             
-            this.camera.position.set(cameraZ, cameraZ, cameraZ);
-            this.camera.lookAt(0, 0, 0);
-            this.controls.reset();
+            loader.load(
+                '/assembly/Assem2.gltf',
+                function(gltf) {
+                    model = gltf.scene;
+                    
+                    // Scale and position the model
+                    model.scale.setScalar(5); // Scale up for better visibility
+                    
+                    // Fix orientation - rotate the model to correct upside-down issue
+                    model.rotation.x = Math.PI; // Rotate 180 degrees around X-axis to flip upright
+                    
+                    // Enable shadows on all meshes
+                    model.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            
+                            // Improve material properties
+                            if (child.material) {
+                                child.material.needsUpdate = true;
+                            }
+                        }
+                    });
+
+                    scene.add(model);
+                    
+                    // Store original positions and create controls
+                    storeOriginalPositions();
+                    createComponentControls();
+                    
+                    // Center the camera on the model
+                    const box = new THREE.Box3().setFromObject(model);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    
+                    // Position camera to see the whole model
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const fov = camera.fov * (Math.PI / 180);
+                    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                    cameraZ *= 1.5; // Add some padding
+                    
+                    camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ);
+                    camera.lookAt(center);
+                    
+                    controls.target.copy(center);
+                    controls.update();
+                    
+                    // Hide loading message
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    console.log('Model loaded successfully');
+                    console.log('Model bounds:', box);
+                    console.log('Model center:', center);
+                    console.log('Model size:', size);
+                },
+                function(progress) {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    document.getElementById('loading').innerHTML = `Loading Reactor Model... ${percent}%`;
+                },
+                function(error) {
+                    console.error('Error loading model:', error);
+                    document.getElementById('loading').style.display = 'none';
+                    showError('Failed to load 3D model. Please check that all files are present.');
+                }
+            );
         }
-    }
-    
-    toggleWireframe() {
-        if (this.mesh) {
-            this.mesh.material = this.mesh.material === this.solidMaterial ? 
-                this.wireframeMaterial : this.solidMaterial;
+
+        function loadModelInfo() {
+            fetch('/api/model-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error loading model info:', data.error);
+                        return;
+                    }
+                    
+                    const info = data.gltf_info;
+                    document.getElementById('node-count').textContent = `Nodes: ${info.nodes.length}`;
+                    document.getElementById('mesh-count').textContent = `Meshes: ${info.total_meshes}`;
+                    document.getElementById('material-count').textContent = `Materials: ${info.total_materials}`;
+                    document.getElementById('buffer-count').textContent = `Buffers: ${info.total_buffers}`;
+                    
+                    console.log('Model components:', data);
+                })
+                .catch(error => {
+                    console.error('Error fetching model info:', error);
+                });
         }
-    }
-    
-    onWindowResize() {
-        const width = this.container.clientWidth;
-        const height = 250;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            
+            if (autoRotate && model) {
+                model.rotation.y += 0.005;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function resetCamera() {
+            if (model) {
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = camera.fov * (Math.PI / 180);
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+                cameraZ *= 1.5;
+                
+                camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ);
+                camera.lookAt(center);
+                controls.target.copy(center);
+                controls.update();
+            }
+        }
+
+        function toggleAutoRotate() {
+            autoRotate = !autoRotate;
+        }
+
+        function toggleWireframe() {
+            wireframeMode = !wireframeMode;
+            
+            if (model) {
+                model.traverse(function(child) {
+                    if (child.isMesh && child.material) {
+                        child.material.wireframe = wireframeMode;
+                    }
+                });
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Model orientation controls
+        function flipX() {
+            if (model) {
+                model.rotation.x += Math.PI;
+            }
+        }
+
+        function flipY() {
+            if (model) {
+                model.rotation.y += Math.PI;
+            }
+        }
+
+        function flipZ() {
+            if (model) {
+                model.rotation.z += Math.PI;
+            }
+        }
+
+        function resetOrientation() {
+            if (model) {
+                // Reset to the default orientation (already flipped)
+                model.rotation.set(Math.PI, 0, 0);
+            }
+        }
+
+        // Exploded view functions
+        function storeOriginalPositions() {
+            if (!model) return;
+            
+            originalPositions.clear();
+            explodedOffsets.clear();
+            componentNames = [];
+            
+            model.traverse(function(child) {
+                if (child.isMesh && child.name) {
+                    let componentName = child.name;
+                    
+                    // Group the leg parts together
+                    if (componentName.includes('Legs-')) {
+                        componentName = 'Legs (Both)';
+                    }
+                    // Group the 96 well plate parts together
+                    else if (componentName === 'v1-96wellplate-1' || componentName.includes('mesh_3')) {
+                        componentName = '96 Well Plate';
+                    }
+                    
+                    if (!componentNames.includes(componentName)) {
+                        componentNames.push(componentName);
+                        explodedOffsets.set(componentName, 0);
+                    }
+                    
+                    originalPositions.set(child.name, {
+                        x: child.position.x,
+                        y: child.position.y,
+                        z: child.position.z
+                    });
+                }
+            });
+            
+            // Sort components by their original Y position (bottom to top)
+            componentNames.sort((a, b) => {
+                let avgYA = 0, avgYB = 0;
+                let countA = 0, countB = 0;
+                
+                model.traverse(function(child) {
+                    if (child.isMesh && child.name) {
+                        let name = child.name;
+                        if (name.includes('Legs-')) {
+                            name = 'Legs (Both)';
+                        } else if (name === 'v1-96wellplate-1' || name.includes('mesh_3')) {
+                            name = '96 Well Plate';
+                        }
+                        
+                        if (name === a) {
+                            avgYA += child.position.y;
+                            countA++;
+                        } else if (name === b) {
+                            avgYB += child.position.y;
+                            countB++;
+                        }
+                    }
+                });
+                
+                return (avgYA / countA) - (avgYB / countB);
+            });
+            
+            console.log('Component order (bottom to top):', componentNames);
+        }
+
+        function createComponentControls() {
+            const slidersContainer = document.getElementById('component-sliders');
+            slidersContainer.innerHTML = '';
+            
+            componentNames.forEach((componentName, index) => {
+                const sliderDiv = document.createElement('div');
+                sliderDiv.className = 'component-slider';
+                
+                const label = document.createElement('label');
+                label.textContent = componentName;
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '-2';
+                slider.max = '2';
+                slider.step = '0.01';
+                slider.value = '0';
+                slider.id = `offset-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                const numberInput = document.createElement('input');
+                numberInput.type = 'number';
+                numberInput.min = '-2';
+                numberInput.max = '2';
+                numberInput.step = '0.01';
+                numberInput.value = '0';
+                numberInput.id = `number-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                const valueDisplay = document.createElement('span');
+                valueDisplay.textContent = '0.00';
+                valueDisplay.id = `value-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // Slider change handler
+                slider.addEventListener('input', function() {
+                    const offset = parseFloat(this.value);
+                    explodedOffsets.set(componentName, offset);
+                    valueDisplay.textContent = offset.toFixed(2);
+                    numberInput.value = offset.toFixed(2);
+                    updateComponentPosition(componentName, offset);
+                });
+                
+                // Number input change handler
+                numberInput.addEventListener('input', function() {
+                    let offset = parseFloat(this.value);
+                    if (isNaN(offset)) offset = 0;
+                    offset = Math.max(-2, Math.min(2, offset)); // Clamp to range
+                    this.value = offset.toFixed(2);
+                    
+                    explodedOffsets.set(componentName, offset);
+                    valueDisplay.textContent = offset.toFixed(2);
+                    slider.value = offset.toFixed(2);
+                    updateComponentPosition(componentName, offset);
+                });
+                
+                sliderDiv.appendChild(label);
+                sliderDiv.appendChild(slider);
+                sliderDiv.appendChild(numberInput);
+                sliderDiv.appendChild(valueDisplay);
+                slidersContainer.appendChild(sliderDiv);
+            });
+        }
+
+        function updateComponentPosition(componentName, yOffset) {
+            if (!model) return;
+            
+            model.traverse(function(child) {
+                if (child.isMesh && child.name) {
+                    let childComponentName = child.name;
+                    
+                    // Apply same grouping logic
+                    if (childComponentName.includes('Legs-')) {
+                        childComponentName = 'Legs (Both)';
+                    } else if (childComponentName === 'v1-96wellplate-1' || childComponentName.includes('mesh_3')) {
+                        childComponentName = '96 Well Plate';
+                    }
+                    
+                    if (childComponentName === componentName) {
+                        const original = originalPositions.get(child.name);
+                        if (original) {
+                            child.position.y = original.y + yOffset;
+                        }
+                    }
+                }
+            });
+        }
+
+        function toggleExplodedView() {
+            isExploded = !isExploded;
+            const controlsDiv = document.getElementById('explosion-controls');
+            
+            if (isExploded) {
+                controlsDiv.style.display = 'block';
+                // Apply current offsets
+                componentNames.forEach(componentName => {
+                    const offset = explodedOffsets.get(componentName) || 0;
+                    updateComponentPosition(componentName, offset);
+                });
+            } else {
+                controlsDiv.style.display = 'none';
+                // Reset to original positions
+                resetAllOffsets();
+            }
+        }
+
+        function animateExplosion() {
+            if (isAnimating || !model) return;
+            
+            isAnimating = true;
+            const animationSpeed = parseFloat(document.getElementById('animationSpeed').value);
+            const duration = 2000 / animationSpeed; // Animation duration in ms
+            const steps = 60; // Animation steps
+            const stepDuration = duration / steps;
+            
+            let currentStep = 0;
+            const targetOffsets = new Map();
+            
+            // Store current target offsets
+            componentNames.forEach(componentName => {
+                targetOffsets.set(componentName, explodedOffsets.get(componentName) || 0);
+            });
+            
+            // If not exploded, animate to exploded position
+            if (!isExploded) {
+                isExploded = true;
+                document.getElementById('explosion-controls').style.display = 'block';
+            }
+            
+            const animate = () => {
+                currentStep++;
+                const progress = currentStep / steps;
+                const easeProgress = 0.5 * (1 - Math.cos(progress * Math.PI)); // Smooth easing
+                
+                componentNames.forEach(componentName => {
+                    const targetOffset = targetOffsets.get(componentName);
+                    const currentOffset = targetOffset * easeProgress;
+                    updateComponentPosition(componentName, currentOffset);
+                    
+                    // Update slider UI
+                    const sliderId = `offset-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const numberId = `number-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const valueId = `value-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const slider = document.getElementById(sliderId);
+                    const numberInput = document.getElementById(numberId);
+                    const valueDisplay = document.getElementById(valueId);
+                    
+                    if (slider && numberInput && valueDisplay) {
+                        slider.value = currentOffset.toFixed(2);
+                        numberInput.value = currentOffset.toFixed(2);
+                        valueDisplay.textContent = currentOffset.toFixed(2);
+                    }
+                });
+                
+                if (currentStep < steps) {
+                    setTimeout(animate, stepDuration);
+                } else {
+                    isAnimating = false;
+                }
+            };
+            
+            animate();
+        }
+
+        function resetAllOffsets() {
+            if (!model) return;
+            
+            // Reset all components to original positions
+            model.traverse(function(child) {
+                if (child.isMesh && child.name) {
+                    const original = originalPositions.get(child.name);
+                    if (original) {
+                        child.position.set(original.x, original.y, original.z);
+                    }
+                }
+            });
+            
+            // Reset UI sliders
+            componentNames.forEach(componentName => {
+                explodedOffsets.set(componentName, 0);
+                const sliderId = `offset-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const numberId = `number-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const valueId = `value-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const slider = document.getElementById(sliderId);
+                const numberInput = document.getElementById(numberId);
+                const valueDisplay = document.getElementById(valueId);
+                
+                if (slider && numberInput && valueDisplay) {
+                    slider.value = '0';
+                    numberInput.value = '0';
+                    valueDisplay.textContent = '0.00';
+                }
+            });
+        }
+
+        // Save/Load functionality
+        function savePreset() {
+            if (!componentNames.length) {
+                alert('No explosion settings to save. Please load a model first.');
+                return;
+            }
+            
+            const preset = {
+                version: '1.1',
+                timestamp: new Date().toISOString(),
+                modelName: 'Reactor Assembly',
+                componentOffsets: {},
+                cameraSettings: {
+                    position: {
+                        x: camera.position.x,
+                        y: camera.position.y,
+                        z: camera.position.z
+                    },
+                    target: {
+                        x: controls.target.x,
+                        y: controls.target.y,
+                        z: controls.target.z
+                    }
+                },
+                animationSpeed: parseFloat(document.getElementById('animationSpeed').value)
+            };
+            
+            componentNames.forEach(componentName => {
+                preset.componentOffsets[componentName] = explodedOffsets.get(componentName) || 0;
+            });
+            
+            const jsonString = JSON.stringify(preset, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reactor_explosion_preset_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            console.log('Preset saved:', preset);
+        }
         
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(width, height);
-    }
-}
+        function loadPreset() {
+            document.getElementById('presetFile').click();
+        }
+        
+        function handlePresetFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const preset = JSON.parse(e.target.result);
+                    
+                    if (!preset.componentOffsets) {
+                        throw new Error('Invalid preset format: missing componentOffsets');
+                    }
+                    
+                    // Apply component offsets
+                    componentNames.forEach(componentName => {
+                        const offset = preset.componentOffsets[componentName] || 0;
+                        explodedOffsets.set(componentName, offset);
+                        
+                        // Update UI elements
+                        const sliderId = `offset-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        const numberId = `number-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        const valueId = `value-${componentName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                        const slider = document.getElementById(sliderId);
+                        const numberInput = document.getElementById(numberId);
+                        const valueDisplay = document.getElementById(valueId);
+                        
+                        if (slider && numberInput && valueDisplay) {
+                            slider.value = offset.toFixed(2);
+                            numberInput.value = offset.toFixed(2);
+                            valueDisplay.textContent = offset.toFixed(2);
+                        }
+                        
+                        // Apply position
+                        updateComponentPosition(componentName, offset);
+                    });
+                    
+                    // Restore camera settings if available
+                    if (preset.cameraSettings && camera && controls) {
+                        const cameraPos = preset.cameraSettings.position;
+                        const cameraTarget = preset.cameraSettings.target;
+                        
+                        if (cameraPos) {
+                            camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+                        }
+                        
+                        if (cameraTarget) {
+                            controls.target.set(cameraTarget.x, cameraTarget.y, cameraTarget.z);
+                            camera.lookAt(controls.target);
+                        }
+                        
+                        controls.update();
+                    }
+                    
+                    // Restore animation speed if available
+                    if (preset.animationSpeed !== undefined) {
+                        document.getElementById('animationSpeed').value = preset.animationSpeed;
+                    }
+                    
+                    // Ensure exploded view is enabled
+                    if (!isExploded) {
+                        isExploded = true;
+                        document.getElementById('explosion-controls').style.display = 'block';
+                    }
+                    
+                    const versionInfo = preset.version ? `v${preset.version}` : 'v1.0';
+                    const cameraInfo = preset.cameraSettings ? ' (with camera)' : '';
+                    const speedInfo = preset.animationSpeed ? ` (speed: ${preset.animationSpeed}x)` : '';
+                    
+                    alert(`Preset loaded successfully! ${versionInfo}${cameraInfo}${speedInfo}\nTimestamp: ${preset.timestamp || 'Unknown'}\nComponents: ${Object.keys(preset.componentOffsets).length}`);
+                    console.log('Preset loaded:', preset);
+                    
+                } catch (error) {
+                    alert('Error loading preset: ' + error.message);
+                    console.error('Preset load error:', error);
+                }
+            };
+            
+            reader.readAsText(file);
+            
+            // Reset the file input so the same file can be selected again
+            event.target.value = '';
+        }
 
-// Global functions for button controls
-function resetView(index) {
-    if (viewers[index - 1]) {
-        viewers[index - 1].resetView();
-    }
-}
-
-function toggleWireframe(index) {
-    if (viewers[index - 1]) {
-        viewers[index - 1].toggleWireframe();
-    }
-}
-
-// Initialize all viewers when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    const viewerContainers = document.querySelectorAll('.viewer-container');
-    
-    viewerContainers.forEach((container, index) => {
-        const filename = container.dataset.filename;
-        const viewer = new STLViewer(index + 1, filename);
-        viewers.push(viewer);
-    });
-    
-    // Handle window resize for all viewers
-    window.addEventListener('resize', function() {
-        viewers.forEach(viewer => viewer.onWindowResize());
-    });
-});
-</script>
-{% endblock %} 
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+STL, bin
+reactor/assembly/STL/LightCap.STL, reactor/assembly/bin/LightCap-1@Assem2.bin
+reactor/assembly/STL/ReactorLid.STL, reactor/assembly/bin/ReactorLid-2@Assem2.bin
+reactor/assembly/STL/v1-96wellplate.STL, reactor/assembly/bin/v1-96wellplate-1@Assem2.bin
+reactor/assembly/STL/v1.2-Legs.STL, reactor/assembly/bin/Legs-1@Assem2.bin
+reactor/assembly/STL/v2-96wellLightGradient.STL, reactor/assembly/bin/v2-96wellLightGradient-6@Assem2.bin
+reactor/assembly/STL/v2-CameraMountBottom.STL, reactor/assembly/bin/CameraMountBottom-1@Assem2.bin
+reactor/assembly/STL/v2.1CameraMountTop.STL, reactor/assembly/bin/CameraMountTop-1@Assem2.bin
+reactor/assembly/STL/v3LightFilter & Funnel.STL, reactor/assembly/bin/LightFilter & Funnel-1@Assem2.bin
+reactor/assembly/STL/v2-LightCurtain.STL, 

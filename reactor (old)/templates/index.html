@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}STL File Grid{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>STL Files</h1>
+    <p>{{ files|length }} files found</p>
+    
+    <div class="assembly-controls">
+        <a href="/assembly" class="btn">🔧 Assembly Editor</a>
+        <span class="separator">|</span>
+        <span>Individual part visualization below</span>
+    </div>
+</div>
+
+{% if files %}
+<div class="file-list">
+    {% for file in files %}
+    <div class="file-item-viewer">
+        <h3>{{ file.name }}</h3>
+        <p>Size: {{ file.size_mb }} MB</p>
+        <div class="viewer-container" id="viewer-{{ loop.index }}" data-filename="{{ file.name }}"></div>
+        <div class="viewer-info">
+            <div class="viewer-status" id="status-{{ loop.index }}">Loading...</div>
+            <div class="viewer-controls">
+                <button onclick="resetView({{ loop.index }})" class="btn-small">Reset</button>
+                <button onclick="toggleWireframe({{ loop.index }})" class="btn-small">Wireframe</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <h3>No STL files found</h3>
+    <p>Add STL files to the STL/ directory to get started.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global arrays to store viewers
+let viewers = [];
+
+class STLViewer {
+    constructor(index, filename) {
+        this.index = index;
+        this.filename = filename;
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.controls = null;
+        this.mesh = null;
+        this.wireframeMaterial = null;
+        this.solidMaterial = null;
+        this.container = document.getElementById(`viewer-${index}`);
+        this.statusElement = document.getElementById(`status-${index}`);
+        
+        this.init();
+    }
+    
+    init() {
+        this.statusElement.textContent = 'Initializing...';
+        
+        // Create scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0xffffff); // White background
+        
+        // Get container dimensions
+        const width = this.container.clientWidth;
+        const height = 250;
+        
+        // Create camera
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        
+        // Create renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(width, height);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.container.appendChild(this.renderer.domElement);
+        
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        this.scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(10, 10, 10);
+        directionalLight.castShadow = true;
+        this.scene.add(directionalLight);
+        
+        // Add orbit controls
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.1;
+        this.controls.enableZoom = true;
+        this.controls.enablePan = true;
+        
+        // Load STL file
+        this.loadSTL();
+    }
+    
+    loadSTL() {
+        this.statusElement.textContent = 'Loading...';
+        
+        const loader = new THREE.STLLoader();
+        
+        loader.load(
+            '/serve/' + this.filename,
+            (geometry) => {
+                this.statusElement.textContent = 'Processing...';
+                
+                // Center the geometry
+                geometry.computeBoundingBox();
+                const center = new THREE.Vector3();
+                geometry.boundingBox.getCenter(center);
+                geometry.translate(-center.x, -center.y, -center.z);
+                
+                // Create materials - Grey mesh on white background
+                this.solidMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x888888, // Grey color
+                    side: THREE.DoubleSide
+                });
+                
+                this.wireframeMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x444444, // Darker grey for wireframe
+                    wireframe: true,
+                    side: THREE.DoubleSide
+                });
+                
+                // Create mesh
+                this.mesh = new THREE.Mesh(geometry, this.solidMaterial);
+                this.scene.add(this.mesh);
+                
+                // Position camera
+                const box = new THREE.Box3().setFromObject(this.mesh);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const fov = this.camera.fov * (Math.PI / 180);
+                const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+                
+                this.camera.position.set(cameraZ, cameraZ, cameraZ);
+                this.camera.lookAt(0, 0, 0);
+                this.controls.update();
+                
+                // Start animation loop
+                this.animate();
+                
+                this.statusElement.textContent = 'Ready';
+            },
+            (progress) => {
+                const percent = Math.round((progress.loaded / progress.total) * 100);
+                this.statusElement.textContent = `Loading: ${percent}%`;
+            },
+            (error) => {
+                console.error('Error loading STL:', error);
+                this.statusElement.textContent = 'Error loading file';
+            }
+        );
+    }
+    
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
+    }
+    
+    resetView() {
+        if (this.mesh) {
+            const box = new THREE.Box3().setFromObject(this.mesh);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = this.camera.fov * (Math.PI / 180);
+            const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+            
+            this.camera.position.set(cameraZ, cameraZ, cameraZ);
+            this.camera.lookAt(0, 0, 0);
+            this.controls.reset();
+        }
+    }
+    
+    toggleWireframe() {
+        if (this.mesh) {
+            this.mesh.material = this.mesh.material === this.solidMaterial ? 
+                this.wireframeMaterial : this.solidMaterial;
+        }
+    }
+    
+    onWindowResize() {
+        const width = this.container.clientWidth;
+        const height = 250;
+        
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
+    }
+}
+
+// Global functions for button controls
+function resetView(index) {
+    if (viewers[index - 1]) {
+        viewers[index - 1].resetView();
+    }
+}
+
+function toggleWireframe(index) {
+    if (viewers[index - 1]) {
+        viewers[index - 1].toggleWireframe();
+    }
+}
+
+// Initialize all viewers when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const viewerContainers = document.querySelectorAll('.viewer-container');
+    
+    viewerContainers.forEach((container, index) => {
+        const filename = container.dataset.filename;
+        const viewer = new STLViewer(index + 1, filename);
+        viewers.push(viewer);
+    });
+    
+    // Handle window resize for all viewers
+    window.addEventListener('resize', function() {
+        viewers.forEach(viewer => viewer.onWindowResize());
+    });
+});
+</script>
+{% endblock %} 
