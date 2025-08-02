@@ -285,7 +285,7 @@
             width: 300px;
             height: 100vh;
             z-index: 150;
-            pointer-events: none;
+            pointer-events: auto;
             opacity: 0;
             transition: opacity 0.5s ease;
         }
@@ -302,6 +302,44 @@
             font-size: 20px;
             font-weight: 100;
             white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding-left: 35px; /* Make room for the connecting line */
+        }
+        
+        /* Connecting line pointing to each part */
+        .component-label::before {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 50%;
+            width: 25px;
+            height: 1px;
+            background-color: black;
+            transform: translateY(-50%);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Hover effects for labels */
+        .component-label:hover {
+            transform: scale(1.15);
+        }
+        
+        /* Hover effects for connecting lines */
+        .component-label:hover::before {
+            width: 35px; /* Extend line on hover */
+            background-color: #333; /* Darker color on hover */
+            height: 2px; /* Slightly thicker on hover */
+        }
+
+        /* Faded state for non-hovered labels */
+        .component-label.faded {
+            opacity: 0.3;
+        }
+        
+        /* Fade connecting lines when labels are faded */
+        .component-label.faded::before {
+            opacity: 0.3;
         }
 
         /* Loading indicator */
@@ -356,14 +394,14 @@
 
     <!-- Component Labels -->
     <div class="component-labels" id="componentLabels">
-        <div class="component-label" id="label-legs" style="top: 15%;">Legs</div>
-        <div class="component-label" id="label-wellplate" style="top: 25%;">96 Well Plate</div>
-        <div class="component-label" id="label-camerabottom" style="top: 35%;">Camera Mount Bottom</div>
-        <div class="component-label" id="label-cameratop" style="top: 45%;">Camera Mount Top</div>
-        <div class="component-label" id="label-lightcap" style="top: 55%;">Light Cap</div>
-        <div class="component-label" id="label-lightgradient" style="top: 65%;">Light Gradient</div>
-        <div class="component-label" id="label-reactorlid" style="top: 75%;">Reactor Lid</div>
-        <div class="component-label" id="label-lightfilter" style="top: 85%;">Light Filter & Funnel</div>
+        <div class="component-label" id="label-legs" style="top: 83%;">Legs</div>
+        <div class="component-label" id="label-wellplate" style="top: 42%;">96 Well Plate</div>
+        <div class="component-label" id="label-camerabottom" style="top: 73.5%;">Camera Mount Bottom</div>
+        <div class="component-label" id="label-cameratop" style="top: 68%;">Camera Mount Top</div>
+        <div class="component-label" id="label-lightcap" style="top: 24%;">Light Cap</div>
+        <div class="component-label" id="label-lightgradient" style="top: 34%;">Light Gradient</div>
+        <div class="component-label" id="label-reactorlid" style="top: 15%;">Reactor Lid</div>
+        <div class="component-label" id="label-lightfilter" style="top: 57%;">Light Filter & Funnel</div>
     </div>
 
     <!-- Loading Indicator -->
@@ -617,9 +655,14 @@
         // 3D Reactor Visualization
         let scene, camera, renderer, controls, model;
         let originalPositions = new Map();
+        let originalRotations = new Map();
         let explosionPreset = null;
         let isExploded = false;
         let isAnimating = false;
+        let componentMeshes = new Map(); // Map component names to their meshes
+        let componentCentroids = new Map(); // Map component names to their centroids
+        let rotatingComponents = new Set(); // Track which components are currently rotating
+        let opacityAnimations = new Map(); // Track ongoing opacity animations for each mesh
 
         // Initialize 3D scene
         function init3D() {
@@ -713,15 +756,14 @@
                     // Fix orientation - rotate the model to correct upside-down issue
                     model.rotation.x = Math.PI; // Rotate 180 degrees around X-axis to flip upright
                     
-                    // Override materials to dark gray
-                    const darkGrayMaterial = new THREE.MeshLambertMaterial({ 
-                        color: 0x555555, // Dark gray color
-                        transparent: false
-                    });
-                    
+                    // Override materials to dark gray - each mesh gets its own material instance
                     model.traverse((child) => {
                         if (child.isMesh) {
-                            child.material = darkGrayMaterial;
+                            // Clone material for independent opacity control
+                            child.material = new THREE.MeshLambertMaterial({ 
+                                color: 0x555555, // Dark gray color
+                                transparent: false
+                            });
                             child.castShadow = false;
                             child.receiveShadow = false;
                         }
@@ -751,16 +793,57 @@
             );
         }
 
-        // Store original positions of all meshes
+        // Store original positions and rotations of all meshes
         function storeOriginalPositions(object) {
             object.traverse((child) => {
                 if (child.isMesh) {
+                    // Store original position
                     originalPositions.set(child.uuid, {
                         x: child.position.x,
                         y: child.position.y,
                         z: child.position.z
                     });
+                    
+                    // Store original rotation
+                    originalRotations.set(child.uuid, {
+                        x: child.rotation.x,
+                        y: child.rotation.y,
+                        z: child.rotation.z
+                    });
+                    
+                    // Map component names to meshes
+                    const componentName = getComponentName(child);
+                    if (!componentMeshes.has(componentName)) {
+                        componentMeshes.set(componentName, []);
+                    }
+                    componentMeshes.get(componentName).push(child);
                 }
+            });
+            
+            // Calculate centroids for each component after all meshes are collected
+            calculateComponentCentroids();
+        }
+        
+        // Calculate the centroid (geometric center) of each component
+        function calculateComponentCentroids() {
+            componentMeshes.forEach((meshes, componentName) => {
+                if (meshes.length === 0) return;
+                
+                // Calculate bounding box that encompasses all meshes in this component
+                const box = new THREE.Box3();
+                
+                meshes.forEach(mesh => {
+                    // Get the bounding box of this mesh
+                    const meshBox = new THREE.Box3();
+                    meshBox.setFromObject(mesh);
+                    box.union(meshBox);
+                });
+                
+                // Get the center point of the combined bounding box
+                const centroid = new THREE.Vector3();
+                box.getCenter(centroid);
+                
+                componentCentroids.set(componentName, centroid);
             });
         }
 
@@ -775,6 +858,10 @@
             // Group the 96 well plate parts together
             else if (componentName === 'v1-96wellplate-1' || componentName.includes('mesh_3')) {
                 componentName = '96 Well Plate';
+            }
+            // Handle Light Filter & Funnel component
+            else if (componentName.includes('LightFilter') || componentName.includes('Funnel')) {
+                componentName = 'LightFilter_&_Funnel-1';
             }
             
             return componentName;
@@ -794,6 +881,82 @@
                     child.position.y = originalPos.y + (offset * progress);
                 }
             });
+        }
+
+        // Start continuous rotation for component
+        function startComponentRotation(componentName) {
+            if (!componentMeshes.has(componentName)) return;
+            
+            rotatingComponents.add(componentName);
+        }
+
+        // Stop continuous rotation for component and reset to original position
+        function stopComponentRotation(componentName) {
+            if (!componentMeshes.has(componentName)) return;
+            
+            rotatingComponents.delete(componentName);
+            
+            // Instantly snap back to original position and rotation
+            const meshes = componentMeshes.get(componentName);
+            meshes.forEach(mesh => {
+                const originalPos = originalPositions.get(mesh.uuid);
+                const originalRot = originalRotations.get(mesh.uuid);
+                
+                if (originalPos && originalRot) {
+                    // Reset to original rotation first
+                    mesh.rotation.set(originalRot.x, originalRot.y, originalRot.z);
+                    
+                    // Reset to appropriate position (considering explosion state)
+                    if (isExploded && explosionPreset?.componentOffsets) {
+                        const compName = getComponentName(mesh);
+                        const offset = explosionPreset.componentOffsets[compName] || 0;
+                        mesh.position.set(originalPos.x, originalPos.y + offset, originalPos.z);
+                    } else {
+                        mesh.position.set(originalPos.x, originalPos.y, originalPos.z);
+                    }
+                }
+            });
+        }
+
+
+
+        // Update continuous rotations (called in main animation loop)
+        function updateContinuousRotations() {
+            const rotationSpeed = 0.02; // Radians per frame
+            
+            rotatingComponents.forEach(componentName => {
+                if (componentMeshes.has(componentName) && componentCentroids.has(componentName)) {
+                    const meshes = componentMeshes.get(componentName);
+                    const centroid = componentCentroids.get(componentName);
+                    
+                    // Special case: well plate rotates in opposite direction
+                    const speed = (componentName === '96 Well Plate') ? -rotationSpeed : rotationSpeed;
+                    
+                    meshes.forEach(mesh => {
+                        // Rotate around the component's centroid on the Y-axis
+                        rotateAroundPoint(mesh, centroid, new THREE.Vector3(0, 1, 0), speed);
+                    });
+                }
+            });
+        }
+        
+        // Rotate a mesh around a specific point and axis
+        function rotateAroundPoint(mesh, point, axis, angle) {
+            // Translate mesh so that the rotation point is at the origin
+            mesh.position.sub(point);
+            
+            // Create rotation matrix for the specified angle around the specified axis
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.makeRotationAxis(axis, angle);
+            
+            // Apply rotation to the mesh position
+            mesh.position.applyMatrix4(rotationMatrix);
+            
+            // Apply rotation to the mesh itself
+            mesh.rotateOnWorldAxis(axis, angle);
+            
+            // Translate back to original position
+            mesh.position.add(point);
         }
 
         // Animate explosion/assembly
@@ -855,14 +1018,143 @@
         function animate3D() {
             requestAnimationFrame(animate3D);
             
+            // Update continuous rotations
+            updateContinuousRotations();
+            
             if (renderer && scene && camera) {
                 renderer.render(scene, camera);
             }
         }
 
-        // Initialize 3D scene when page loads
+        // Setup label hover effects
+        function setupLabelHoverEffects() {
+            const labels = document.querySelectorAll('.component-label');
+            
+            labels.forEach(label => {
+                label.addEventListener('mouseenter', () => {
+                    // Fade all other labels
+                    labels.forEach(otherLabel => {
+                        if (otherLabel !== label) {
+                            otherLabel.classList.add('faded');
+                        }
+                    });
+                    
+                    // Get component name from label text and start continuous rotation
+                    const componentName = getComponentNameFromLabel(label.textContent);
+                    if (componentName) {
+                        startComponentRotation(componentName);
+                        // Fade all other reactor parts
+                        fadeUnfocusedParts(componentName);
+                    }
+                });
+                
+                label.addEventListener('mouseleave', () => {
+                    // Remove fade from all labels
+                    labels.forEach(otherLabel => {
+                        otherLabel.classList.remove('faded');
+                    });
+                    
+                    // Stop continuous rotation and reset to original position
+                    const componentName = getComponentNameFromLabel(label.textContent);
+                    if (componentName) {
+                        stopComponentRotation(componentName);
+                        // Reset all parts to full opacity
+                        resetAllPartsOpacity();
+                    }
+                });
+            });
+        }
+        
+        // Animate opacity smoothly for a single mesh
+        function animateOpacity(mesh, targetOpacity, duration = 400) {
+            if (!mesh.material) return;
+            
+            // Cancel any existing animation for this mesh
+            if (opacityAnimations.has(mesh.uuid)) {
+                cancelAnimationFrame(opacityAnimations.get(mesh.uuid).frameId);
+            }
+            
+            const startOpacity = mesh.material.opacity;
+            const startTime = Date.now();
+            
+            // Enable transparency for the animation
+            mesh.material.transparent = true;
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Smooth easing function (ease-out)
+                const easedProgress = 1 - Math.pow(1 - progress, 3);
+                
+                // Interpolate opacity
+                const currentOpacity = startOpacity + (targetOpacity - startOpacity) * easedProgress;
+                mesh.material.opacity = currentOpacity;
+                
+                if (progress < 1) {
+                    // Continue animation
+                    const frameId = requestAnimationFrame(animate);
+                    opacityAnimations.set(mesh.uuid, { frameId, targetOpacity });
+                } else {
+                    // Animation complete
+                    mesh.material.opacity = targetOpacity;
+                    opacityAnimations.delete(mesh.uuid);
+                    
+                    // Disable transparency if fully opaque
+                    if (targetOpacity >= 1.0) {
+                        mesh.material.transparent = false;
+                    }
+                }
+            }
+            
+            animate();
+        }
+        
+        // Fade all parts except the focused one
+        function fadeUnfocusedParts(focusedComponentName) {
+            if (!model) return;
+            
+            componentMeshes.forEach((meshes, componentName) => {
+                const targetOpacity = (componentName === focusedComponentName) ? 1.0 : 0.3;
+                
+                meshes.forEach(mesh => {
+                    animateOpacity(mesh, targetOpacity, 300); // 300ms transition
+                });
+            });
+        }
+        
+        // Reset all parts to full opacity
+        function resetAllPartsOpacity() {
+            if (!model) return;
+            
+            componentMeshes.forEach((meshes) => {
+                meshes.forEach(mesh => {
+                    animateOpacity(mesh, 1.0, 250); // 250ms transition back
+                });
+            });
+        }
+
+        // Map label text to component names
+        function getComponentNameFromLabel(labelText) {
+            const labelMap = {
+                'Legs': 'Legs (Both)',
+                'Legs (Both)': 'Legs (Both)',
+                '96 Well Plate': '96 Well Plate',
+                'Camera Mount Bottom': 'CameraMountBottom-1',
+                'Camera Mount Top': 'CameraMountTop-1',
+                'Light Cap': 'LightCap-1',
+                'Light Gradient': 'v2-96wellLightGradient-6',
+                'Reactor Lid': 'ReactorLid-2',
+                'Light Filter & Funnel': 'LightFilter_&_Funnel-1'
+            };
+            
+            return labelMap[labelText] || labelText;
+        }
+
+        // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             init3D();
+            setupLabelHoverEffects();
         });
 
         // Add event listener to toggle button
