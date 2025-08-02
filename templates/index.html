@@ -154,7 +154,7 @@
             right: 0;
             z-index: 100;
             text-align: center;
-            padding: 1.5rem 0;
+            padding: 1.25rem 0 0 0;
             width: 100%;
             animation: fadeIn 1.2s ease-out forwards;
             transition: transform 0.3s ease;
@@ -169,7 +169,7 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto;
-            padding-bottom: 1rem;
+            padding-bottom: 0.25rem;
         }
 
         .title {
@@ -227,7 +227,7 @@
         .content-container {
             position: relative;
             z-index: 50;
-            margin-top: 120px;
+            margin-top: 100px;
             padding: 0px;
             background: transparent;
             width: 100vw; /* Use full viewport width */
@@ -459,7 +459,7 @@
             grid-area: heatmap;
             position: relative;
             justify-self: start;
-            margin-top: -20px; /* ← TUNE THIS: Negative values move heatmap up */
+            margin-top: -5px; /* ← TUNE THIS: Negative values move heatmap up */
         }
 
         #heatmap {
@@ -1257,7 +1257,7 @@
             if (type === 'amine') {
                 // HORIZONTAL AXIS (bottom labels) - Tooltip appears above
                 const HORIZONTAL_OFFSET = -150;  // ← TUNE: pixels right of label
-                const VERTICAL_OFFSET = -115;  // ← TUNE: pixels above label (negative = above)
+                const VERTICAL_OFFSET = -95;  // ← TUNE: pixels above label (negative = above)
                 
                 tooltip.style.left = (rect.left + HORIZONTAL_OFFSET) + 'px';
                 tooltip.style.top = (rect.top + VERTICAL_OFFSET) + 'px';
