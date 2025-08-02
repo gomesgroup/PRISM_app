@@ -303,42 +303,16 @@
             font-weight: 100;
             white-space: nowrap;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            padding-left: 35px; /* Make room for the connecting line */
-        }
-        
-        /* Connecting line pointing to each part */
-        .component-label::before {
-            content: '';
-            position: absolute;
-            left: -5px;
-            top: 50%;
-            width: 25px;
-            height: 1px;
-            background-color: black;
-            transform: translateY(-50%);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s linear, top 0.4s linear;
         }
 
         /* Hover effects for labels */
         .component-label:hover {
             transform: scale(1.15);
         }
-        
-        /* Hover effects for connecting lines */
-        .component-label:hover::before {
-            width: 35px; /* Extend line on hover */
-            background-color: #333; /* Darker color on hover */
-            height: 2px; /* Slightly thicker on hover */
-        }
 
         /* Faded state for non-hovered labels */
         .component-label.faded {
-            opacity: 0.3;
-        }
-        
-        /* Fade connecting lines when labels are faded */
-        .component-label.faded::before {
             opacity: 0.3;
         }
 
@@ -394,14 +368,14 @@
 
     <!-- Component Labels -->
     <div class="component-labels" id="componentLabels">
-        <div class="component-label" id="label-legs" style="top: 83%;">Legs</div>
-        <div class="component-label" id="label-wellplate" style="top: 42%;">96 Well Plate</div>
-        <div class="component-label" id="label-camerabottom" style="top: 73.5%;">Camera Mount Bottom</div>
-        <div class="component-label" id="label-cameratop" style="top: 68%;">Camera Mount Top</div>
-        <div class="component-label" id="label-lightcap" style="top: 24%;">Light Cap</div>
-        <div class="component-label" id="label-lightgradient" style="top: 34%;">Light Gradient</div>
-        <div class="component-label" id="label-reactorlid" style="top: 15%;">Reactor Lid</div>
-        <div class="component-label" id="label-lightfilter" style="top: 57%;">Light Filter & Funnel</div>
+            <div class="component-label" id="label-reactorlid" style="top: 30%;">Reactor Lid</div>
+            <div class="component-label" id="label-lightcap" style="top: 35%;">Light Cap</div>
+            <div class="component-label" id="label-lightgradient" style="top: 40%;">Light Gradient</div>
+            <div class="component-label" id="label-wellplate" style="top: 45%;">96 Well Plate</div>
+            <div class="component-label" id="label-lightfilter" style="top: 50%;">Light Filter & Funnel</div>
+            <div class="component-label" id="label-cameratop" style="top: 55%;">Camera Mount Top</div>
+            <div class="component-label" id="label-camerabottom" style="top: 60%;">Camera Mount Bottom</div>
+            <div class="component-label" id="label-legs" style="top: 65%;">Legs</div>
     </div>
 
     <!-- Loading Indicator -->
@@ -663,6 +637,30 @@
         let componentCentroids = new Map(); // Map component names to their centroids
         let rotatingComponents = new Set(); // Track which components are currently rotating
         let opacityAnimations = new Map(); // Track ongoing opacity animations for each mesh
+        
+        // Label position configurations
+        const labelPositions = {
+            assembled: {
+                'label-reactorlid': 30,        // 1. Reactor Lid (top)
+                'label-lightcap': 35,          // 2. Light Cap
+                'label-lightgradient': 40,     // 3. Light Gradient
+                'label-wellplate': 45,         // 4. 96 Well Plate
+                'label-lightfilter': 50,       // 5. Light Filter & Funnel
+                'label-cameratop': 55,         // 6. Camera Mount Top
+                'label-camerabottom': 60,      // 7. Camera Mount Bottom
+                'label-legs': 65              // 8. Legs (bottom)
+            },
+            exploded: {
+                'label-legs': 83,
+                'label-wellplate': 42,
+                'label-camerabottom': 73.5,
+                'label-cameratop': 68,
+                'label-lightcap': 24,
+                'label-lightgradient': 34,
+                'label-reactorlid': 15,
+                'label-lightfilter': 57
+            }
+        };
 
         // Initialize 3D scene
         function init3D() {
@@ -960,7 +958,7 @@
         }
 
         // Animate explosion/assembly
-        function animateExplosion(targetState) {
+        function animateExplosion(targetState, currentState) {
             if (isAnimating) return;
             
             isAnimating = true;
@@ -968,7 +966,7 @@
             // Use animation speed from preset, with fallback to 2 seconds
             const speed = explosionPreset?.animationSpeed || 2.0;
             const duration = (2000 / speed); // Faster speed = shorter duration
-            const startProgress = isExploded ? 1 : 0;
+            const startProgress = currentState ? 1 : 0;
             const endProgress = targetState ? 1 : 0;
             
             function animate() {
@@ -984,13 +982,23 @@
                 if (rawProgress < 1) {
                     requestAnimationFrame(animate);
                 } else {
-                    isExploded = targetState;
                     isAnimating = false;
-                    updateToggleButton();
                 }
             }
             
             animate();
+        }
+
+        // Animate labels to their position based on explosion state
+        function animateLabelsToPosition() {
+            const positions = isExploded ? labelPositions.exploded : labelPositions.assembled;
+            
+            Object.entries(positions).forEach(([labelId, topPercent]) => {
+                const label = document.getElementById(labelId);
+                if (label) {
+                    label.style.top = `${topPercent}%`;
+                }
+            });
         }
 
         // Update toggle button text and labels
@@ -1000,18 +1008,31 @@
             
             button.textContent = isExploded ? 'Assemble Reactor' : 'Explode Reactor';
             
-            // Show/hide labels based on explosion state
-            if (isExploded) {
-                labels.classList.add('visible');
-            } else {
-                labels.classList.remove('visible');
-            }
+            // Keep labels visible in both states for consistent interaction
+            labels.classList.add('visible');
+            
+            // Animate labels to their appropriate positions
+            animateLabelsToPosition();
         }
 
         // Toggle explosion
         function toggleExplosion() {
             if (isAnimating || !model) return;
-            animateExplosion(!isExploded);
+            
+            // Capture current state before changing it
+            const currentState = isExploded;
+            const newState = !isExploded;
+            
+            // Update state and start label animation immediately
+            isExploded = newState;
+            
+            // Update button text immediately and start label animation
+            const button = document.getElementById('explodeToggle');
+            button.textContent = isExploded ? 'Assemble Reactor' : 'Explode Reactor';
+            animateLabelsToPosition();
+            
+            // Start reactor animation with both current and target states
+            animateExplosion(newState, currentState);
         }
 
         // 3D Animation loop
@@ -1155,6 +1176,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             init3D();
             setupLabelHoverEffects();
+            
+            // Make labels visible immediately on page load
+            const labels = document.getElementById('componentLabels');
+            if (labels) {
+                labels.classList.add('visible');
+            }
+            
+            // Set initial label positions to assembled state
+            animateLabelsToPosition();
         });
 
         // Add event listener to toggle button
