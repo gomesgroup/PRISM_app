@@ -1,9 +1,10 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.utils
 import json
 import numpy as np
+import pickle
 
 app = Flask(__name__)
 
@@ -26,6 +27,16 @@ def load_smiles_data():
     except Exception as e:
         print(f"Error loading SMILES data: {e}")
         return {}, {}
+
+def load_rate_plots_data():
+    """Load rate plot data from pickle file"""
+    try:
+        with open('data/complete_rate_plots.pkl', 'rb') as f:
+            df = pickle.load(f)
+        return df
+    except Exception as e:
+        print(f"Error loading rate plots data: {e}")
+        return pd.DataFrame()
 
 @app.route('/')
 def index():
@@ -158,6 +169,41 @@ def get_smiles_data():
             'amines': amines_smiles,
             'acids': acids_smiles
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/rate-plot-data')
+def get_rate_plot_data():
+    """API endpoint to get rate plot data for a specific reaction"""
+    try:
+        acid_chloride = request.args.get('acid_chloride')
+        amine = request.args.get('amine')
+        
+        if not acid_chloride or not amine:
+            return jsonify({'error': 'Both acid_chloride and amine parameters are required'}), 400
+        
+        df = load_rate_plots_data()
+        
+        # Filter data for the specific reaction
+        reaction_data = df[(df['acid_chloride'] == acid_chloride) & (df['amine'] == amine)]
+        
+        if reaction_data.empty:
+            return jsonify({'error': 'No data found for this reaction'}), 404
+        
+        # Get the first matching row (should be unique)
+        row = reaction_data.iloc[0]
+        
+        # Convert numpy arrays to lists for JSON serialization
+        times = row['times'].tolist() if hasattr(row['times'], 'tolist') else list(row['times'])
+        one_over_a = row['one_over_a'].tolist() if hasattr(row['one_over_a'], 'tolist') else list(row['one_over_a'])
+        
+        return jsonify({
+            'acid_chloride': row['acid_chloride'],
+            'amine': row['amine'],
+            'times': times,
+            'one_over_a': one_over_a
+        })
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

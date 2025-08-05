@@ -97,14 +97,7 @@
                 box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
-            .rate-chart-container {
-                padding: 18px;
-                margin-bottom: 12px;
-            }
 
-            .rate-chart {
-                height: 180px;
-            }
 
             #heatmap {
                 width: calc(100vw - 555px);  /* Viewport width minus larger sidebar and margins */
@@ -261,84 +254,11 @@
             flex-direction: column;
         }
 
-        .sidebar-header {
-            text-align: left;
-            margin-bottom: 10px;
-            padding: 8px 15px 8px 15px;
-            position: relative;
-        }
 
-        .sidebar-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 15px;
-            width: calc(100% - 30px);
-            height: 4.5px;
-            background-color: #D9D9D9;
-        }
 
-        .sidebar-header::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 15px;
-            width: calc(25% - 7.5px);
-            height: 4.5px;
-            background-color: #6F6F6F;
-            z-index: 1;
-        }
 
-        .sidebar-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #6F6F6F;
-            margin: 0;
-        }
 
-        .rate-chart-container {
-            padding: 15px;
-            margin-bottom: 10px;
-        }
 
-        .rate-chart {
-            width: 100%;
-            height: 150px;
-        }
-
-        .chart-axis {
-            stroke: #666;
-            stroke-width: 1;
-        }
-
-        .chart-grid {
-            stroke: #e0e0e0;
-            stroke-width: 0.5;
-        }
-
-        .chart-line {
-            fill: none;
-            stroke-width: 2;
-        }
-
-        .chart-point {
-            r: 4;
-            stroke-width: 2;
-            fill: white;
-        }
-
-        .chart-text {
-            font-size: 11px;
-            font-family: 'Avenir', sans-serif;
-            fill: #666;
-        }
-
-        .chart-axis-label {
-            font-size: 12px;
-            font-family: 'Avenir', sans-serif;
-            fill: #333;
-            font-weight: 500;
-        }
         
         .sidebar-column-headers {
             display: grid;
@@ -428,7 +348,37 @@
             font-size: 1.4rem;
             font-weight: 700;
             color: #333;
-            margin-bottom: 5px;
+        }
+        
+        .rate-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .chart-icon {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 100;
+            pointer-events: auto;
+        }
+        
+        .chart-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        .chart-icon svg {
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let events pass through to parent */
         }
 
         .rate-label {
@@ -590,6 +540,34 @@
             font-size: 10px;
         }
 
+        /* Rate plot tooltip styles */
+        .rate-plot-tooltip {
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 2000;
+            pointer-events: none;
+            min-width: 360px;
+            min-height: 210px;
+            border: 1px solid #ddd;
+        }
+        
+
+        
+        .rate-plot-chart {
+            width: 340px;
+            height: 200px;
+        }
+        
+        .loading-rate-plot {
+            color: #999;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+        }
+
         /* Heatmap highlight overlays */
         .highlight-overlay {
             position: absolute;
@@ -683,14 +661,7 @@
                 box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
-            .rate-chart-container {
-                padding: 10px;
-                margin-bottom: 8px;
-            }
 
-            .rate-chart {
-                height: 120px;
-            }
 
             .molecule-container {
                 width: 80px;
@@ -794,14 +765,7 @@
                 box-shadow: 0 0 5px 1px #C0C0C0;
             }
 
-            .rate-chart-container {
-                padding: 8px;
-                margin-bottom: 5px;
-            }
 
-            .rate-chart {
-                height: 80px;
-            }
 
             .reaction-grid {
                 gap: 5px;
@@ -912,14 +876,8 @@
     <div class="content-container">
         <div class="sidebar">
             <div class="sidebar-content">
-                <div class="sidebar-header">
-                    <h3 class="sidebar-title">View</h3>
-                </div>
-                <div class="rate-chart-container">
-                    <svg id="rate-chart" class="rate-chart"></svg>
-                </div>
                 <div id="reaction-info" class="empty-sidebar">
-                    Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.
+                    <span id="empty-sidebar-text">Click any cell in the heatmap to compare reactions</span>
                 </div>
             </div>
         </div>
@@ -1161,6 +1119,242 @@
         let tooltipTimeout = null;
         let currentHoveredCell = null;
         
+        // Rate plot functionality
+        let ratePlotData = new Map(); // Cache for rate plot data
+        let currentRatePlotTooltip = null;
+        let ratePlotTimeout = null;
+        
+        // Function to fetch rate plot data from the server
+        async function fetchRatePlotData(acidName, amineName) {
+            const cacheKey = `${acidName}_${amineName}`;
+            
+            // Check cache first
+            if (ratePlotData.has(cacheKey)) {
+                return ratePlotData.get(cacheKey);
+            }
+            
+            try {
+                const response = await fetch(`/api/rate-plot-data?acid_chloride=${encodeURIComponent(acidName)}&amine=${encodeURIComponent(amineName)}`);
+                
+                if (!response.ok) {
+                    console.warn(`No rate plot data found for ${acidName} + ${amineName}`);
+                    return null;
+                }
+                
+                const data = await response.json();
+                
+                // Cache the data
+                ratePlotData.set(cacheKey, data);
+                return data;
+            } catch (error) {
+                console.error('Error fetching rate plot data:', error);
+                return null;
+            }
+        }
+        
+        // Function to create SVG rate plot
+        function createRatePlotSVG(data, width = 340, height = 200) {
+            const times = data.times;
+            const oneOverA = data.one_over_a;
+            
+            if (!times || !oneOverA || times.length === 0) {
+                return '<div class="loading-rate-plot">No data available</div>';
+            }
+            
+            const margin = { top: 20, right: 20, bottom: 40, left: 80 }; // More left margin to give y-axis label proper space
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+            
+            // Calculate line of best fit first to include in scale calculations
+            const n = times.length;
+            const sumX = times.reduce((sum, t) => sum + t, 0);
+            const sumY = oneOverA.reduce((sum, y) => sum + y, 0);
+            const sumXY = times.reduce((sum, t, i) => sum + t * oneOverA[i], 0);
+            const sumXX = times.reduce((sum, t) => sum + t * t, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            // Calculate line endpoints
+            const lineStartX = Math.min(...times);
+            const lineEndX = Math.max(...times);
+            const lineStartY = slope * lineStartX + intercept;
+            const lineEndY = slope * lineEndX + intercept;
+            
+            // Calculate scales including both data and line of best fit
+            const maxTime = Math.max(...times);
+            const minTime = Math.min(...times);
+            const maxOneOverA = Math.max(...oneOverA, lineStartY, lineEndY);
+            const minOneOverA = Math.min(...oneOverA, lineStartY, lineEndY);
+            
+            const xScale = (x) => ((x - minTime) / (maxTime - minTime)) * plotWidth;
+            const yScale = (y) => plotHeight - ((y - minOneOverA) / (maxOneOverA - minOneOverA)) * plotHeight;
+            
+            // Create SVG
+            let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+            
+            // Add background
+            svg += `<rect width="${width}" height="${height}" fill="white"/>`;
+            
+            // Create main plot group
+            svg += `<g transform="translate(${margin.left}, ${margin.top})">`;
+            
+            // Draw grid lines
+            const xTicks = 5;
+            const yTicks = 4;
+            
+            for (let i = 0; i <= xTicks; i++) {
+                const x = (i / xTicks) * plotWidth;
+                svg += `<line x1="${x}" y1="0" x2="${x}" y2="${plotHeight}" stroke="#e0e0e0" stroke-width="0.5"/>`;
+                
+                // X-axis labels
+                const xValue = minTime + (i / xTicks) * (maxTime - minTime);
+                svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${xValue.toFixed(1)}</text>`;
+            }
+            
+            for (let i = 0; i <= yTicks; i++) {
+                const y = (i / yTicks) * plotHeight;
+                svg += `<line x1="0" y1="${plotHeight - y}" x2="${plotWidth}" y2="${plotHeight - y}" stroke="#e0e0e0" stroke-width="0.5"/>`;
+                
+                // Y-axis labels
+                const yValue = minOneOverA + (i / yTicks) * (maxOneOverA - minOneOverA);
+                svg += `<text x="-15" y="${plotHeight - y + 4}" text-anchor="end" font-size="10" fill="#666">${yValue.toFixed(2)}</text>`;
+            }
+            
+            // Draw axes
+            svg += `<line x1="0" y1="${plotHeight}" x2="${plotWidth}" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
+            svg += `<line x1="0" y1="0" x2="0" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
+            
+            // Draw line of best fit (using values calculated earlier)
+            
+            svg += `<line x1="${xScale(lineStartX)}" y1="${yScale(lineStartY)}" 
+                         x2="${xScale(lineEndX)}" y2="${yScale(lineEndY)}" 
+                         stroke="black" stroke-width="2" opacity="0.9"/>`;
+            
+            // Draw scatter points on top of the line
+            for (let i = 0; i < times.length; i++) {
+                const x = xScale(times[i]);
+                const y = yScale(oneOverA[i]);
+                
+                // Draw scatter point
+                svg += `<circle cx="${x}" cy="${y}" r="4" fill="#007acc"/>`;
+            }
+            
+            // Add axis labels
+            svg += `<text x="${plotWidth/2}" y="${plotHeight + 35}" text-anchor="middle" font-size="12" fill="#333">Time (min)</text>`;
+            svg += `<text x="-65" y="${plotHeight/2}" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90, -65, ${plotHeight/2})">1/[A] (M⁻¹)</text>`;
+            
+            svg += '</g></svg>';
+            
+            return svg;
+        }
+        
+        // Function to show rate plot tooltip
+        async function showRatePlotTooltip(event, acidName, amineName) {
+            // Clear any existing tooltips
+            hideRatePlotTooltip();
+            hideMoleculeTooltip(); // Hide molecule tooltips to avoid conflicts
+            
+            if (ratePlotTimeout) {
+                clearTimeout(ratePlotTimeout);
+                ratePlotTimeout = null;
+            }
+            
+            // Create tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'rate-plot-tooltip';
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'rate-plot-chart';
+            chartDiv.innerHTML = '<div class="loading-rate-plot">Loading plot...</div>';
+            tooltip.appendChild(chartDiv);
+            
+            // Position tooltip
+            const rect = event.target.getBoundingClientRect();
+            tooltip.style.left = (rect.right + 10) + 'px';
+            tooltip.style.top = (rect.top - 120) + 'px';
+            
+            // Ensure tooltip stays within viewport
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const tooltipRect = { width: 360, height: 210 }; // updated dimensions for wider plot
+            
+            if (parseInt(tooltip.style.left) + tooltipRect.width > viewportWidth) {
+                tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
+            }
+            
+            if (parseInt(tooltip.style.top) < 0) {
+                tooltip.style.top = (rect.bottom + 10) + 'px';
+            }
+            
+            if (parseInt(tooltip.style.top) + tooltipRect.height > viewportHeight) {
+                tooltip.style.top = (viewportHeight - tooltipRect.height - 10) + 'px';
+            }
+            
+            document.body.appendChild(tooltip);
+            currentRatePlotTooltip = tooltip;
+            
+            // Fetch and display rate plot data
+            try {
+                const data = await fetchRatePlotData(acidName, amineName);
+                
+                if (data && currentRatePlotTooltip === tooltip) {
+                    const plotSVG = createRatePlotSVG(data);
+                    chartDiv.innerHTML = plotSVG;
+                } else if (currentRatePlotTooltip === tooltip) {
+                    chartDiv.innerHTML = '<div class="loading-rate-plot">No data available</div>';
+                }
+            } catch (error) {
+                console.error('Error loading rate plot:', error);
+                if (currentRatePlotTooltip === tooltip) {
+                    chartDiv.innerHTML = '<div class="loading-rate-plot">Error loading plot</div>';
+                }
+            }
+        }
+        
+        // Function to hide rate plot tooltip
+        function hideRatePlotTooltip() {
+            if (currentRatePlotTooltip) {
+                currentRatePlotTooltip.remove();
+                currentRatePlotTooltip = null;
+            }
+        }
+        
+        // Function to schedule hiding the rate plot tooltip
+        function scheduleHideRatePlotTooltip(delay = 300) {
+            if (ratePlotTimeout) {
+                clearTimeout(ratePlotTimeout);
+            }
+            ratePlotTimeout = setTimeout(hideRatePlotTooltip, delay);
+        }
+        
+        // Function to add event listeners to chart icons
+        function addRatePlotEventListeners() {
+            const chartIcons = document.querySelectorAll('.chart-icon[data-acid-name][data-amine-name]');
+            
+            chartIcons.forEach(chartIcon => {
+                const acidName = chartIcon.getAttribute('data-acid-name');
+                const amineName = chartIcon.getAttribute('data-amine-name');
+                
+                // Only add listeners if we have valid data
+                if (acidName && amineName) {
+                    chartIcon.addEventListener('mouseenter', function(event) {
+                        // Clear any existing rate plot tooltip timeout
+                        if (ratePlotTimeout) {
+                            clearTimeout(ratePlotTimeout);
+                            ratePlotTimeout = null;
+                        }
+                        
+                        showRatePlotTooltip(event, acidName, amineName);
+                    });
+                    
+                    chartIcon.addEventListener('mouseleave', function(event) {
+                        scheduleHideRatePlotTooltip(200);
+                    });
+                }
+            });
+        }
+        
         // Heatmap highlighting functionality
         let currentHighlights = [];
         let heatmapData = null;
@@ -1168,8 +1362,38 @@
         
         // Selection and comparison functionality
         let selectedCells = new Map(); // Map of "acidName,amineName" -> {acidName, amineName, reactionRate, color}
-        let colorStack = ['#00FFD4', '#9AACFF', '#FF8434']; // Available colors
+        let colorStack = ['#ff69f1', '#00FFD4', '#9AACFF', '#FF8434']; // Available colors
         let usedColors = []; // Colors currently in use
+        
+        // Get maximum number of selectable cells based on available colors
+        function getMaxSelectableCells() {
+            return colorStack.length + usedColors.length;
+        }
+        
+        // Update the maximum cells display in the UI
+        function updateMaxCellsDisplay() {
+            const maxCellsElement = document.getElementById('max-cells-display');
+            if (maxCellsElement) {
+                maxCellsElement.textContent = getMaxSelectableCells();
+            }
+        }
+        
+        // Function to add colors to the color stack (for future extensibility)
+        // Usage: addColorsToStack(['#FF5733', '#33FF57', '#3357FF'])
+        function addColorsToStack(newColors) {
+            if (Array.isArray(newColors)) {
+                colorStack.push(...newColors);
+                updateMaxCellsDisplay();
+                console.log(`Added ${newColors.length} colors. Max selectable cells: ${getMaxSelectableCells()}`);
+            } else {
+                console.warn('addColorsToStack expects an array of color strings');
+            }
+        }
+        
+        // Function to check if more cells can be selected
+        function canSelectMoreCells() {
+            return selectedCells.size < getMaxSelectableCells() && colorStack.length > 0;
+        }
         
         // Initialize RDKit
         initRDKitModule().then(function(RDKit_module) {
@@ -1265,7 +1489,7 @@
             } else if (type === 'acid') {
                 // VERTICAL AXIS (left labels) - Tooltip appears to the right
                 const HORIZONTAL_OFFSET = 50;  // ← TUNE: pixels right of label
-                const VERTICAL_OFFSET = -100;   // ← TUNE: pixels above/below label
+                const VERTICAL_OFFSET = -80;   // ← TUNE: pixels above/below label
                 
                 tooltip.style.left = (rect.left + HORIZONTAL_OFFSET) + 'px';
                 tooltip.style.top = (rect.top + VERTICAL_OFFSET) + 'px';
@@ -1324,7 +1548,10 @@
         
         // Color and selection management functions
         function getNextColor() {
-            if (colorStack.length === 0) return null;
+            if (colorStack.length === 0) {
+                console.warn('No colors available in color stack');
+                return null;
+            }
             const color = colorStack.pop();
             usedColors.push(color);
             return color;
@@ -1395,17 +1622,20 @@
                 removeSelectedScalebarIndicator(acidName, amineName);
                 selectedCells.delete(cellKey);
                 
-                // Remove from chart with the cell's color
-                addCellToChart(acidName, amineName, reactionRate, cellData.color);
+
             } else {
                 // Select cell (if we haven't reached the limit)
-                if (selectedCells.size >= 3) {
-                    console.log('Maximum of 3 cells can be selected');
+                if (!canSelectMoreCells()) {
+                    const maxCells = getMaxSelectableCells();
+                    console.log(`Maximum of ${maxCells} cells can be selected`);
                     return;
                 }
                 
                 const color = getNextColor();
-                if (!color) return;
+                if (!color) {
+                    console.log('No colors available for selection');
+                    return;
+                }
                 
                 selectedCells.set(cellKey, {
                     acidName,
@@ -1417,8 +1647,7 @@
                 addSelectedCellBorder(acidName, amineName, color);
                 addSelectedScalebarIndicator(acidName, amineName, reactionRate, color);
                 
-                // Add to chart with the selected cell's color
-                addCellToChart(acidName, amineName, reactionRate, color);
+
             }
             
             updateSidebar();
@@ -1429,10 +1658,10 @@
             const reactionInfo = document.getElementById('reaction-info');
             
             if (selectedCells.size === 0) {
-                reactionInfo.innerHTML = '<div class="empty-sidebar">Click any cell in the heatmap to compare reactions. Select up to 3 cells - click again to deselect.</div>';
+                const maxCells = getMaxSelectableCells();
+                reactionInfo.innerHTML = `<div class="empty-sidebar">Click any cell in the heatmap to compare reactions</div>`;
                 // Clear chart data when no cells are selected
                 selectedCellsData = [];
-                generateRateChart();
                 return;
             }
             
@@ -1463,6 +1692,19 @@
                         <div class="reaction-column">
                             <div class="rate-container">
                                 <div class="rate-value">${cellData.reactionRate !== null ? cellData.reactionRate.toFixed(3) : 'N/A'}</div>
+                                ${cellData.reactionRate !== null ? `
+                                <div class="chart-icon" 
+                                     data-acid-name="${cellData.acidName}" 
+                                     data-amine-name="${cellData.amineName}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 3v18h18"/>
+                                        <path d="M7 16l4-6 3 3 4-7"/>
+                                        <circle cx="7" cy="16" r="1"/>
+                                        <circle cx="11" cy="10" r="1"/>
+                                        <circle cx="14" cy="13" r="1"/>
+                                        <circle cx="18" cy="6" r="1"/>
+                                    </svg>
+                                </div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -1479,6 +1721,9 @@
                 loadMolecularStructures(cellData.acidName, cellData.amineName, rowIndex);
                 rowIndex++;
             }
+            
+            // Add event listeners to rate values for rate plot tooltips
+            addRatePlotEventListeners();
         }
         
         // Function to load molecular structures for a specific row
@@ -2242,6 +2487,8 @@
         let gameOfLife;
         document.addEventListener('DOMContentLoaded', function() {
             gameOfLife = new GameOfLife();
+            // Initialize the max cells display
+            updateMaxCellsDisplay();
         });
 
         // Handle window resize
@@ -2490,261 +2737,7 @@
             document.getElementById('loading').innerHTML = 'Error loading heatmap: ' + error.message;
         });
         
-        // Global variable to store selected cell data for charts
-        let selectedCellsData = [];
-        
-        // Generate sample reaction rate chart
-        function generateRateChart() {
-            const svg = document.getElementById('rate-chart');
-            
-            // Responsive dimensions
-            const screenWidth = window.innerWidth;
-            let width, height;
-            
-            if (screenWidth >= 2560) {
-                width = 460;
-                height = 180;
-            } else if (screenWidth <= 768) {
-                width = 300;
-                height = 80;
-            } else if (screenWidth <= 1024) {
-                width = 260;
-                height = 120;
-            } else {
-                width = 450;
-                height = 150;
-            }
-            
-            const margin = { top: 15, right: 25, bottom: 35, left: 50 };
-            const plotWidth = width - margin.left - margin.right;
-            const plotHeight = height - margin.top - margin.bottom;
-            
 
-            
-            // If no selected cells, show default sample data
-            if (selectedCellsData.length === 0) {
-                selectedCellsData = [{
-                    acid: 'Sample',
-                    amine: 'Data',
-                    rate: 100,
-                    color: '#7A7C68',
-                    data: generateSampleData(100)
-                }];
-            }
-            
-            // Create scales (find max values across all datasets)
-            const maxTime = 30;
-            const maxInverseMolarity = Math.max(...selectedCellsData.flatMap(d => d.data.map(p => p.inverseMolarity))) + 0.2;
-            const minInverseMolarity = Math.min(...selectedCellsData.flatMap(d => d.data.map(p => p.inverseMolarity))) - 0.1;
-            
-            const xScale = (x) => (x / maxTime) * plotWidth;
-            const yScale = (y) => plotHeight - ((y - minInverseMolarity) / (maxInverseMolarity - minInverseMolarity)) * plotHeight;
-            
-            // Clear existing content
-            svg.innerHTML = '';
-            
-            // Set SVG attributes
-            svg.setAttribute('width', width);
-            svg.setAttribute('height', height);
-            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-            
-            // Create main group
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.setAttribute('transform', `translate(${margin.left}, ${margin.top})`);
-            svg.appendChild(g);
-            
-            // Draw grid lines
-            for (let i = 0; i <= 3; i++) {
-                const x = (i / 3) * plotWidth;
-                const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                gridLine.setAttribute('x1', x);
-                gridLine.setAttribute('y1', 0);
-                gridLine.setAttribute('x2', x);
-                gridLine.setAttribute('y2', plotHeight);
-                gridLine.setAttribute('class', 'chart-grid');
-                g.appendChild(gridLine);
-                
-                // X-axis labels
-                const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                xLabel.setAttribute('x', x);
-                xLabel.setAttribute('y', plotHeight + 20);
-                xLabel.setAttribute('class', 'chart-text');
-                xLabel.setAttribute('text-anchor', 'middle');
-                xLabel.textContent = (i * 10).toString();
-                g.appendChild(xLabel);
-            }
-            
-            // Y-axis grid lines and labels
-            const ySteps = 4;
-            for (let i = 0; i <= ySteps; i++) {
-                const y = (i / ySteps) * plotHeight;
-                const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                gridLine.setAttribute('x1', 0);
-                gridLine.setAttribute('y1', plotHeight - y);
-                gridLine.setAttribute('x2', plotWidth);
-                gridLine.setAttribute('y2', plotHeight - y);
-                gridLine.setAttribute('class', 'chart-grid');
-                g.appendChild(gridLine);
-                
-                // Y-axis labels
-                const yLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                yLabel.setAttribute('x', -15);
-                yLabel.setAttribute('y', plotHeight - y + 4);
-                yLabel.setAttribute('class', 'chart-text');
-                yLabel.setAttribute('text-anchor', 'end');
-                const yValue = minInverseMolarity + (i / ySteps) * (maxInverseMolarity - minInverseMolarity);
-                yLabel.textContent = yValue.toFixed(1);
-                g.appendChild(yLabel);
-            }
-            
-            // Draw axes
-            const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            xAxis.setAttribute('x1', 0);
-            xAxis.setAttribute('y1', plotHeight);
-            xAxis.setAttribute('x2', plotWidth);
-            xAxis.setAttribute('y2', plotHeight);
-            xAxis.setAttribute('class', 'chart-axis');
-            g.appendChild(xAxis);
-            
-            const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            yAxis.setAttribute('x1', 0);
-            yAxis.setAttribute('y1', 0);
-            yAxis.setAttribute('x2', 0);
-            yAxis.setAttribute('y2', plotHeight);
-            yAxis.setAttribute('class', 'chart-axis');
-            g.appendChild(yAxis);
-            
-            // Draw lines and points for each selected cell
-            selectedCellsData.forEach(cellData => {
-                const data = cellData.data;
-                const color = cellData.color;
-                
-                // Calculate line of best fit for this dataset
-                const n = data.length;
-                const sumX = data.reduce((sum, d) => sum + d.time, 0);
-                const sumY = data.reduce((sum, d) => sum + d.inverseMolarity, 0);
-                const sumXY = data.reduce((sum, d) => sum + d.time * d.inverseMolarity, 0);
-                const sumXX = data.reduce((sum, d) => sum + d.time * d.time, 0);
-                
-                const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-                const intercept = (sumY - slope * sumX) / n;
-                
-                // Draw line of best fit
-                const lineStart = { x: 0, y: intercept };
-                const lineEnd = { x: maxTime, y: slope * maxTime + intercept };
-                
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', xScale(lineStart.x));
-                line.setAttribute('y1', yScale(lineStart.y));
-                line.setAttribute('x2', xScale(lineEnd.x));
-                line.setAttribute('y2', yScale(lineEnd.y));
-                line.setAttribute('class', 'chart-line');
-                line.setAttribute('stroke', color);
-                g.appendChild(line);
-                
-                // Draw data points
-                data.forEach(d => {
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', xScale(d.time));
-                    circle.setAttribute('cy', yScale(d.inverseMolarity));
-                    circle.setAttribute('class', 'chart-point');
-                    circle.setAttribute('stroke', color);
-                    circle.setAttribute('opacity', '0.7');
-                    g.appendChild(circle);
-                });
-            });
-            
-            // Add axis labels
-            const xAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            xAxisLabel.setAttribute('x', plotWidth / 2);
-            xAxisLabel.setAttribute('y', height - 5);
-            xAxisLabel.setAttribute('class', 'chart-axis-label');
-            xAxisLabel.setAttribute('text-anchor', 'middle');
-            xAxisLabel.textContent = 'Time (min)';
-            svg.appendChild(xAxisLabel);
-            
-            const yAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            yAxisLabel.setAttribute('x', 15);
-            yAxisLabel.setAttribute('y', height / 2);
-            yAxisLabel.setAttribute('class', 'chart-axis-label');
-            yAxisLabel.setAttribute('text-anchor', 'middle');
-            yAxisLabel.setAttribute('transform', `rotate(-90, 15, ${height / 2})`);
-            yAxisLabel.textContent = '1/M';
-            svg.appendChild(yAxisLabel);
-        }
-        
-
-        
-        // Function to add cell data to the chart
-        function addCellToChart(acidName, amineName, reactionRate, cellColor) {
-            const cellKey = `${acidName}_${amineName}`;
-            
-            // Check if this cell is already in the chart
-            const existingIndex = selectedCellsData.findIndex(d => d.key === cellKey);
-            
-            if (existingIndex !== -1) {
-                // Remove existing data for this cell
-                selectedCellsData.splice(existingIndex, 1);
-            } else {
-                // Add new data for this cell using the selected cell's color
-                const cellData = {
-                    key: cellKey,
-                    acid: acidName,
-                    amine: amineName,
-                    rate: reactionRate,
-                    color: cellColor,
-                    data: generateSampleData(reactionRate)
-                };
-                
-                selectedCellsData.push(cellData);
-                
-                // Limit to 3 datasets maximum
-                if (selectedCellsData.length > 3) {
-                    selectedCellsData.shift();
-                }
-            }
-            
-            // If no data left, add back sample data
-            if (selectedCellsData.length === 0) {
-                selectedCellsData = [{
-                    key: 'sample',
-                    acid: 'Sample',
-                    amine: 'Data',
-                    rate: 100,
-                    color: '#7A7C68',
-                    data: generateSampleData(100)
-                }];
-            }
-            
-            // Regenerate chart with new data
-            generateRateChart();
-        }
-        
-        // Function to generate sample data for a given reaction rate
-        function generateSampleData(reactionRate) {
-            // Base sample data points (time in minutes, 1/M)
-            const baseData = [
-                { time: 0, inverseMolarity: 0.5 },
-                { time: 10, inverseMolarity: 0.8 },
-                { time: 20, inverseMolarity: 1.2 },
-                { time: 30, inverseMolarity: 1.6 }
-            ];
-            
-            // Modify data based on reaction rate (higher rates = steeper slope)
-            const rateFactor = reactionRate ? Math.log10(reactionRate) / 4 : 1;
-            return baseData.map(d => ({
-                time: d.time,
-                inverseMolarity: d.inverseMolarity * (0.5 + rateFactor)
-            }));
-        }
-        
-        // Generate the chart on page load
-        generateRateChart();
-        
-        // Regenerate chart on window resize for responsiveness
-        window.addEventListener('resize', function() {
-            generateRateChart();
-        });
     </script>
 </body>
 </html> 
