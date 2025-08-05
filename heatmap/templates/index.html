@@ -1165,29 +1165,50 @@
             const plotWidth = width - margin.left - margin.right;
             const plotHeight = height - margin.top - margin.bottom;
             
-            // Calculate line of best fit first to include in scale calculations
-            const n = times.length;
-            const sumX = times.reduce((sum, t) => sum + t, 0);
-            const sumY = oneOverA.reduce((sum, y) => sum + y, 0);
-            const sumXY = times.reduce((sum, t, i) => sum + t * oneOverA[i], 0);
-            const sumXX = times.reduce((sum, t) => sum + t * t, 0);
-            
-            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-            
-            // Calculate line endpoints
-            const lineStartX = Math.min(...times);
-            const lineEndX = Math.max(...times);
-            const lineStartY = slope * lineStartX + intercept;
-            const lineEndY = slope * lineEndX + intercept;
-            
-            // Calculate scales including both data and line of best fit
+            // Check if there's variation in time data
             const maxTime = Math.max(...times);
             const minTime = Math.min(...times);
-            const maxOneOverA = Math.max(...oneOverA, lineStartY, lineEndY);
-            const minOneOverA = Math.min(...oneOverA, lineStartY, lineEndY);
+            const hasTimeVariation = maxTime !== minTime;
             
-            const xScale = (x) => ((x - minTime) / (maxTime - minTime)) * plotWidth;
+            let slope, intercept, lineStartX, lineEndX, lineStartY, lineEndY;
+            let maxOneOverA, minOneOverA;
+            
+            if (hasTimeVariation) {
+                // Calculate line of best fit only if there's time variation
+                const n = times.length;
+                const sumX = times.reduce((sum, t) => sum + t, 0);
+                const sumY = oneOverA.reduce((sum, y) => sum + y, 0);
+                const sumXY = times.reduce((sum, t, i) => sum + t * oneOverA[i], 0);
+                const sumXX = times.reduce((sum, t) => sum + t * t, 0);
+                
+                slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+                intercept = (sumY - slope * sumX) / n;
+                
+                // Calculate line endpoints
+                lineStartX = minTime;
+                lineEndX = maxTime;
+                lineStartY = slope * lineStartX + intercept;
+                lineEndY = slope * lineEndX + intercept;
+                
+                // Calculate scales including both data and line of best fit
+                maxOneOverA = Math.max(...oneOverA, lineStartY, lineEndY);
+                minOneOverA = Math.min(...oneOverA, lineStartY, lineEndY);
+            } else {
+                // No time variation - just use data points for scaling
+                maxOneOverA = Math.max(...oneOverA);
+                minOneOverA = Math.min(...oneOverA);
+                
+                // Add some padding to the scale for better visualization
+                const range = maxOneOverA - minOneOverA;
+                const padding = range > 0 ? range * 0.1 : 0.1; // 10% padding or 0.1 if no variation
+                maxOneOverA += padding;
+                minOneOverA -= padding;
+            }
+            
+            // Create scale functions
+            const xScale = hasTimeVariation ? 
+                (x) => ((x - minTime) / (maxTime - minTime)) * plotWidth :
+                (x) => plotWidth / 2; // Center points when no time variation
             const yScale = (y) => plotHeight - ((y - minOneOverA) / (maxOneOverA - minOneOverA)) * plotHeight;
             
             // Create SVG
@@ -1208,8 +1229,15 @@
                 svg += `<line x1="${x}" y1="0" x2="${x}" y2="${plotHeight}" stroke="#e0e0e0" stroke-width="0.5"/>`;
                 
                 // X-axis labels
-                const xValue = minTime + (i / xTicks) * (maxTime - minTime);
-                svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${xValue.toFixed(1)}</text>`;
+                if (hasTimeVariation) {
+                    const xValue = minTime + (i / xTicks) * (maxTime - minTime);
+                    svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${xValue.toFixed(1)}</text>`;
+                } else {
+                    // For no time variation, just show the single time value
+                    if (i === Math.floor(xTicks / 2)) { // Only show label in the middle
+                        svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${minTime.toFixed(1)}</text>`;
+                    }
+                }
             }
             
             for (let i = 0; i <= yTicks; i++) {
@@ -1225,13 +1253,14 @@
             svg += `<line x1="0" y1="${plotHeight}" x2="${plotWidth}" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
             svg += `<line x1="0" y1="0" x2="0" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
             
-            // Draw line of best fit (using values calculated earlier)
+            // Draw line of best fit only if there's time variation
+            if (hasTimeVariation) {
+                svg += `<line x1="${xScale(lineStartX)}" y1="${yScale(lineStartY)}" 
+                             x2="${xScale(lineEndX)}" y2="${yScale(lineEndY)}" 
+                             stroke="black" stroke-width="2" opacity="0.9"/>`;
+            }
             
-            svg += `<line x1="${xScale(lineStartX)}" y1="${yScale(lineStartY)}" 
-                         x2="${xScale(lineEndX)}" y2="${yScale(lineEndY)}" 
-                         stroke="black" stroke-width="2" opacity="0.9"/>`;
-            
-            // Draw scatter points on top of the line
+            // Draw scatter points
             for (let i = 0; i < times.length; i++) {
                 const x = xScale(times[i]);
                 const y = yScale(oneOverA[i]);
