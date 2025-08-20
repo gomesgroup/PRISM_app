@@ -1170,6 +1170,18 @@
             const minTime = Math.min(...times);
             const hasTimeVariation = maxTime !== minTime;
             
+            // Check if we have insufficient data for slope calculation
+            if (!hasTimeVariation || times.length === 1) {
+                return `<div style="width: ${width}px; height: ${height}px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; box-sizing: border-box;">
+                    <div style="font-size: 16px; font-weight: bold; color: #d32f2f; margin: 0 0 8px 0; padding: 0; line-height: 1.2;">
+                        Reaction is faster than detection limit
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin: 0; padding: 0; line-height: 1.3;">
+                        Displayed rate may be unreliable
+                    </div>
+                </div>`;
+            }
+            
             let slope, intercept, lineStartX, lineEndX, lineStartY, lineEndY;
             let maxOneOverA, minOneOverA;
             
@@ -1720,7 +1732,7 @@
                         </div>
                         <div class="reaction-column">
                             <div class="rate-container">
-                                <div class="rate-value">${cellData.reactionRate !== null ? cellData.reactionRate.toFixed(3) : 'N/A'}</div>
+                                <div class="rate-value">${cellData.reactionRate !== null ? Math.round(cellData.reactionRate) : 'N/A'}</div>
                                 ${cellData.reactionRate !== null ? `
                                 <div class="chart-icon" 
                                      data-acid-name="${cellData.acidName}" 
@@ -1839,7 +1851,7 @@
                     </div>
                     <div class="reaction-column">
                         <div class="rate-container">
-                            <div class="rate-value">${reactionRate !== null ? reactionRate.toFixed(3) : 'N/A'}</div>
+                            <div class="rate-value">${reactionRate !== null ? Math.round(reactionRate) : 'N/A'}</div>
                         </div>
                     </div>
                 </div>
