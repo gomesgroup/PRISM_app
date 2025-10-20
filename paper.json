@@ -1,0 +1,54 @@
+{
+    "title": "PRISM (Parallelized Reaction-rates via Indicator Spectrometry using Machine-vision) and Machine Learning Modeling of Amide Coupling Reaction",
+    "authors": [
+        {
+            "name": "Mitchell Baumer",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Liliana C. Gallegos",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Dylan M. Anstine",
+            "affiliations": [
+                "Department of Chemical Engineering and Materials Science, Michigan State University, 428 S Shaw Ln #2100, East Lansing, MI 48824, United States"
+            ]
+        },
+        {
+            "name": "Andrew Kubaney",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Jose Emilio A. Regio",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Olexander Isayev",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Stefan Bernhard",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        },
+        {
+            "name": "Gabe Gomes",
+            "affiliations": [
+                "Department of Chemistry, Carnegie Mellon University, 4400 Fifth Avenue, Pittsburgh, Pennsylvania 15213, United States"
+            ]
+        }
+    ],
+    "abstract": "We present an innovative methodology for measuring amide coupling reaction rates by monitoring pH changes via indicator dyes, achieving precision comparable to traditional NMR techniques, called PRISM (Parallelized Reaction-rates via Indicator Spectrometry using Machine-vision) The experimental design, enabled by a serial dilution, allowed for measuring twelve rate constants concurrently, spanning more than four orders of magnitude using 96-well plates, with 1,162 total rate constants collected. Moreover, the instrumentation is 3D-printed, with the remaining components comprising readily available and cost-effective hardware, promoting the democratized use of this technique to generate uniform data sets. Validation with 19F-NMR confirmed PRISM’s reliability. Computational investigations reveal a concerted asynchronous SN2 mechanism, with base-catalyzed pathways exhibiting the lowest energy barriers. To complement the PRISM rate dataset, we developed a classification model that achieves an accuracy of over 0.95 for out-of-distribution reactants in determining rate measurability, and a chemically rich graph neural network regression model utilizing AIMNet2 atomic representations, achieving an MAE of 0.52 in predicting quantitative reaction rates. This approach provides a framework that offers a resource-efficient strategy for studying reaction kinetics, which can be applied to other reaction classes."
+}
