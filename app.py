@@ -13,12 +13,12 @@ app = Flask(__name__)
 # LANDING PAGE ROUTE
 # ============================================================================
 
-@app.route('/')
+@app.route('/prism/')
 def landing():
     """Landing page with Game of Life background"""
     return render_template('landing/index.html')
 
-@app.route('/paper.json')
+@app.route('/prism/paper.json')
 def serve_paper_json():
     """Serve the paper metadata JSON file"""
     return send_from_directory('.', 'paper.json')
@@ -27,7 +27,7 @@ def serve_paper_json():
 # MENU ROUTES
 # ============================================================================
 
-@app.route('/menu')
+@app.route('/prism/menu')
 def menu():
     """Main menu page with Game of Life background"""
     return render_template('menu/index.html')
@@ -36,12 +36,12 @@ def menu():
 # REACTOR/EXPERIMENT ROUTES
 # ============================================================================
 
-@app.route('/experiment')
+@app.route('/prism/experiment')
 def experiment():
     """Reactor visualization page"""
     return render_template('reactor/index.html')
 
-@app.route('/assembly/<path:filename>')
+@app.route('/prism/assembly/<path:filename>')
 def serve_assembly_files(filename):
     """Serve GLTF and binary files from the reactor assembly directory"""
     from flask import abort
@@ -60,7 +60,7 @@ def serve_assembly_files(filename):
     # If still not found, return 404
     abort(404)
 
-@app.route('/api/explosion-preset')
+@app.route('/prism/api/explosion-preset')
 def get_explosion_preset():
     """Serve the explosion preset for reactor visualization"""
     try:
@@ -72,7 +72,7 @@ def get_explosion_preset():
     except Exception as e:
         return {'error': str(e)}, 500
 
-@app.route('/api/model-info')
+@app.route('/prism/api/model-info')
 def model_info():
     """Provide information about the reactor model components"""
     try:
@@ -161,12 +161,12 @@ def load_rate_plots_data():
         print(f"Error loading rate plots data: {e}")
         return pd.DataFrame()
 
-@app.route('/data')
+@app.route('/prism/data')
 def data():
     """Heatmap analysis page"""
     return render_template('heatmap/index.html')
 
-@app.route('/api/heatmap-data')
+@app.route('/prism/api/heatmap-data')
 def get_heatmap_data():
     """API endpoint to get heatmap data as JSON"""
     try:
@@ -266,7 +266,7 @@ def get_heatmap_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/data-info')
+@app.route('/prism/api/data-info')
 def get_data_info():
     """API endpoint to get basic information about the dataset"""
     try:
@@ -283,7 +283,7 @@ def get_data_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/smiles-data')
+@app.route('/prism/api/smiles-data')
 def get_smiles_data():
     """API endpoint to get SMILES data for both amines and acids"""
     try:
@@ -295,7 +295,7 @@ def get_smiles_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/rate-plot-data')
+@app.route('/prism/api/rate-plot-data')
 def get_rate_plot_data():
     """API endpoint to get rate plot data for a specific reaction"""
     try:
@@ -347,14 +347,16 @@ if __name__ == '__main__':
     print("=" * 60)
     print("=== Amides WebApp Unified Server ===")
     print("=" * 60)
-    print(f"Landing page: http://0.0.0.0:8000/")
-    print(f"Menu page: http://0.0.0.0:8000/menu")
-    print(f"Experiment (Reactor): http://0.0.0.0:8000/experiment")
-    print(f"Data (Heatmap): http://0.0.0.0:8000/data")
+    print(f"Landing page: http://0.0.0.0:8001/prism/")
+    print(f"Menu page: http://0.0.0.0:8001/prism/menu")
+    print(f"Experiment (Reactor): http://0.0.0.0:8001/prism/experiment")
+    print(f"Data (Heatmap): http://0.0.0.0:8001/prism/data")
+    print("=" * 60)
+    print(f"Deployment URL: https://gomes.andrew.cmu.edu/prism/")
     print("=" * 60)
     print(f"Reactor assembly: {os.path.exists('reactor/assembly/Assem2.gltf')}")
     print(f"Heatmap data: {os.path.exists('heatmap/data/sorted_final_rates.csv')}")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(debug=True, host='0.0.0.0', port=8001)
 

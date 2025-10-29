@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landing</title>
+    <title>PRISM</title>
     <style>
         body {
             margin: 0;
@@ -384,7 +384,7 @@
             </div>
             <div class="button-container">
                 <a href="#" class="paper-button btn-read-paper">Read the paper</a>
-                <a href="/menu" class="paper-button btn-check-webapp">Check the webapp</a>
+                <a href="/prism/menu" class="paper-button btn-check-webapp">Check the webapp</a>
             </div>
         </div>
     </div>
@@ -627,7 +627,7 @@
         // Load paper data from JSON
         async function loadPaperData() {
             try {
-                const response = await fetch('/paper.json');
+                const response = await fetch('/prism/paper.json');
                 const paperData = await response.json();
                 
                 // Set title

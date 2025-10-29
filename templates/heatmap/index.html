@@ -889,7 +889,7 @@
 </head>
 <body>
     <!-- Back Button -->
-    <a href="/menu" class="back-button">Back</a>
+    <a href="/prism/menu" class="back-button">Back</a>
 
     <!-- Game of Life Background -->
     <div class="game-of-life-container">
@@ -1173,7 +1173,7 @@
             }
             
             try {
-                const response = await fetch(`/api/rate-plot-data?acid_chloride=${encodeURIComponent(acidName)}&amine=${encodeURIComponent(amineName)}`);
+                const response = await fetch(`/prism/api/rate-plot-data?acid_chloride=${encodeURIComponent(acidName)}&amine=${encodeURIComponent(amineName)}`);
                 
                 if (!response.ok) {
                     console.warn(`No rate plot data found for ${acidName} + ${amineName}`);
@@ -1486,7 +1486,7 @@
         });
         
         // Load SMILES data
-        fetch('/api/smiles-data')
+        fetch('/prism/api/smiles-data')
             .then(response => response.json())
             .then(data => {
                 smilesData = data;
@@ -2588,7 +2588,7 @@
         });
         
         // Load and display heatmap
-        fetch('/api/heatmap-data')
+        fetch('/prism/api/heatmap-data')
             .then(response => response.json())
             .then(data => {
                 const plotData = JSON.parse(data);

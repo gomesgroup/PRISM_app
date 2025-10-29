@@ -385,7 +385,7 @@
 </head>
 <body>
     <!-- Back Button -->
-    <a href="/menu" class="back-button">Back</a>
+    <a href="/prism/menu" class="back-button">Back</a>
 
     <!-- Animated Background -->
     <div class="game-of-life-container">
@@ -775,7 +775,7 @@
         // Load explosion preset from API
         async function loadExplosionPreset() {
             try {
-                const response = await fetch('/api/explosion-preset');
+                const response = await fetch('/prism/api/explosion-preset');
                 explosionPreset = await response.json();
                 console.log('Explosion preset loaded:', explosionPreset);
                 
@@ -800,7 +800,7 @@
         function load3DModel() {
             const loader = new THREE.GLTFLoader();
             
-            loader.load('/assembly/Assem2.gltf', 
+            loader.load('/prism/assembly/Assem2.gltf', 
                 function(gltf) {
                     model = gltf.scene;
                     
