@@ -5,7 +5,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.utils
 import numpy as np
-import pickle
 
 app = Flask(__name__)
 
@@ -132,9 +131,13 @@ def model_info():
 # ============================================================================
 
 def load_data():
-    """Load and prepare the CSV data for the heatmap"""
-    df = pd.read_csv('heatmap/data/sorted_final_rates.csv', index_col=0)
-    return df
+    """Rate constants (M^-1 min^-1); blank where the pair has no measured k.
+    Built by heatmap/build_data.py from the PRISM repository (1.5x hydrolysis control)."""
+    return pd.read_csv('heatmap/data/rate_constants.csv', index_col=0)
+
+def load_classes():
+    """Class of every pair: measurable, instant, un-reactive or undetermined."""
+    return pd.read_csv('heatmap/data/reaction_classes.csv', index_col=0).fillna('')
 
 def load_smiles_data():
     """Load SMILES data for both amines and acids"""
@@ -152,14 +155,13 @@ def load_smiles_data():
         return {}, {}
 
 def load_rate_plots_data():
-    """Load rate plot data from pickle file"""
+    """Per-pair well data for the rate plots (heatmap/build_data.py)."""
     try:
-        with open('heatmap/data/complete_rate_plots.pkl', 'rb') as f:
-            df = pickle.load(f)
-        return df
+        with open('heatmap/data/rate_plots.json') as f:
+            return json.load(f)
     except Exception as e:
         print(f"Error loading rate plots data: {e}")
-        return pd.DataFrame()
+        return {}
 
 @app.route('/prism/data')
 def data():
@@ -171,12 +173,13 @@ def get_heatmap_data():
     """API endpoint to get heatmap data as JSON"""
     try:
         df = load_data()
+        classes = load_classes().reindex(index=df.index, columns=df.columns).fillna('')
         
         # Apply SymLogNorm transformation to match the notebook exactly
         linthresh = 10
-        vmin = df.min().min()
-        vmax = df.max().max()
-        z_data = df.values
+        vmin = np.nanmin(df.values)
+        vmax = np.nanmax(df.values)
+        z_data = df.values.astype(float)
         
         # Implement matplotlib's SymLogNorm transformation
         def symlog_transform(x, linthresh):
@@ -204,6 +207,7 @@ def get_heatmap_data():
                 return result
         
         z_normalized = symlog_transform(z_data, linthresh)
+        z_normalized = np.where(np.isnan(z_data), np.nan, z_normalized)  # no k: transparent
         
         # Create custom colorbar tick values and labels to show original scale
         # Generate some representative values for the colorbar
@@ -224,12 +228,21 @@ def get_heatmap_data():
                          '<b>Amine:</b> %{x}<br>' +
                          '<b>Rate:</b> %{customdata:.2f} (M⁻¹ · min⁻¹)<br>' +
                          '<extra></extra>',
-            customdata=z_data,  # Use original data for hover
+            customdata=np.where(np.isnan(z_data), None, z_data).tolist(),  # original k for hover
             showscale=False,  # Hide the colorbar/scale
             # Add grid lines like in the notebook
             xgap=1,
             ygap=1
         ))
+        # Pairs without a measured rate constant: one grey layer; customdata holds the class.
+        not_measured = (classes.values != 'measurable') & (classes.values != '')
+        fig.add_trace(go.Heatmap(
+            z=np.where(not_measured, 1.0, np.nan).tolist(),
+            x=df.columns.tolist(),
+            y=df.index.tolist(),
+            colorscale=[[0, '#d4d4d4'], [1, '#d4d4d4']],
+            customdata=np.where(not_measured, classes.values, None).tolist(),
+            showscale=False, hoverinfo='none', xgap=1, ygap=1))
         
         # Update layout for square heatmap
         fig.update_layout(
@@ -238,7 +251,7 @@ def get_heatmap_data():
                 side='bottom',
                 constrain='domain',
                 tickfont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'),
-                titlefont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
+                title=dict(font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'))
             ),
             yaxis=dict(
                 tickmode='linear',
@@ -248,13 +261,11 @@ def get_heatmap_data():
                 constrain='domain',
                 side='right',
                 tickfont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'),
-                titlefont=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
+                title=dict(font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif'))
             ),
-            # Calculate dimensions for square cells - 125% larger
-            # 30 rows (acid chlorides) × 34 columns (amines)
-            # Base cell size of 25 pixels (125% of 20px)
-            width=34 * 30 + 100 + 30 + 70,  # Larger for better detail
-            height=30 * 30 + 35 + 60,  # Larger for better detail
+            # Square cells, 30 px each
+            width=df.shape[1] * 30 + 100 + 30 + 70,
+            height=df.shape[0] * 30 + 35 + 60,
             margin=dict(l=100, r=30, t=8, b=30),
             font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
         )
@@ -277,7 +288,8 @@ def get_data_info():
             'amines': df.columns.tolist(),
             'min_value': float(df.min().min()),
             'max_value': float(df.max().max()),
-            'mean_value': float(df.mean().mean())
+            'measured_pairs': int(df.notna().sum().sum()),
+            'classes': load_classes().stack().value_counts().to_dict()
         }
         return jsonify(info)
     except Exception as e:
@@ -305,27 +317,11 @@ def get_rate_plot_data():
         if not acid_chloride or not amine:
             return jsonify({'error': 'Both acid_chloride and amine parameters are required'}), 400
         
-        df = load_rate_plots_data()
-        
-        # Filter data for the specific reaction
-        reaction_data = df[(df['acid_chloride'] == acid_chloride) & (df['amine'] == amine)]
-        
-        if reaction_data.empty:
+        plots = load_rate_plots_data()
+        row = plots.get(f"{acid_chloride}||{amine}")
+        if row is None:
             return jsonify({'error': 'No data found for this reaction'}), 404
-        
-        # Get the first matching row (should be unique)
-        row = reaction_data.iloc[0]
-        
-        # Convert numpy arrays to lists for JSON serialization
-        times = row['times'].tolist() if hasattr(row['times'], 'tolist') else list(row['times'])
-        one_over_a = row['one_over_a'].tolist() if hasattr(row['one_over_a'], 'tolist') else list(row['one_over_a'])
-        
-        return jsonify({
-            'acid_chloride': row['acid_chloride'],
-            'amine': row['amine'],
-            'times': times,
-            'one_over_a': one_over_a
-        })
+        return jsonify(row)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -355,7 +351,7 @@ if __name__ == '__main__':
     print(f"Deployment URL: https://gomes.andrew.cmu.edu/prism/")
     print("=" * 60)
     print(f"Reactor assembly: {os.path.exists('reactor/assembly/Assem2.gltf')}")
-    print(f"Heatmap data: {os.path.exists('heatmap/data/sorted_final_rates.csv')}")
+    print(f"Heatmap data: {os.path.exists('heatmap/data/rate_constants.csv')}")
     print("=" * 60)
     
     app.run(debug=True, host='0.0.0.0', port=8001)

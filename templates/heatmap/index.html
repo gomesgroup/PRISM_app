@@ -929,7 +929,7 @@
                 <!-- Gradient will be applied programmatically -->
                 <div class="scalebar-indicator" id="scalebar-indicator"></div>
             </div>
-            <div class="scalebar-title">Reaction Rate (M<sup>-1</sup> · min<sup>-1</sup>)</div>
+            <div class="scalebar-title">Rate constant, <i>k</i> (M<sup>-1</sup> min<sup>-1</sup>); grey: no measured <i>k</i></div>
         </div>
     </div>
 
@@ -1191,141 +1191,66 @@
             }
         }
         
+        // A measured rate constant is a number; other cells carry their class name.
+        function isRateConstant(v) { return typeof v === 'number' && isFinite(v); }
+        function formatRateValue(v) {
+            if (isRateConstant(v)) return v < 10 ? v.toFixed(1) : Math.round(v);
+            if (typeof v === 'string' && v) return v.charAt(0).toUpperCase() + v.slice(1);
+            return 'N/A';
+        }
+
         // Function to create SVG rate plot
         function createRatePlotSVG(data, width = 340, height = 200) {
-            const times = data.times;
-            const oneOverA = data.one_over_a;
-            
-            if (!times || !oneOverA || times.length === 0) {
-                return '<div class="loading-rate-plot">No data available</div>';
+            // 1/[A]0 against t1/2 for each well. Filled: wells used in the fit (passed the
+            // per-well hydrolysis control); open: wells that did not; grey triangles: the
+            // no-amine control at the same concentrations. Line: the fit (slope = k).
+            const t = data.t_half || [], y = data.inv_A0 || [], used = data.used || [];
+            const ct = data.control_t_half || [], cy = data.control_inv_A0 || [];
+            const label = {measurable: 'Measurable', instant: 'Instant (reactive, not measurable)',
+                           'un-reactive': 'Un-reactive', undetermined: 'Undetermined'}[data.rate_class] || '';
+            let headline = label;
+            if (data.k !== null && data.k !== undefined) {
+                headline = `k = ${data.k < 10 ? data.k.toFixed(1) : Math.round(data.k)} M⁻¹ min⁻¹`;
+                if (data.n_batches > 1) headline += ` (mean of ${data.n_batches} batches)`;
             }
-            
-            const margin = { top: 20, right: 20, bottom: 40, left: 80 }; // More left margin to give y-axis label proper space
-            const plotWidth = width - margin.left - margin.right;
-            const plotHeight = height - margin.top - margin.bottom;
-            
-            // Check if there's variation in time data
-            const maxTime = Math.max(...times);
-            const minTime = Math.min(...times);
-            const hasTimeVariation = maxTime !== minTime;
-            
-            // Check if we have insufficient data for slope calculation
-            if (!hasTimeVariation || times.length === 1) {
-                return `<div style="width: ${width}px; height: ${height}px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; box-sizing: border-box;">
-                    <div style="font-size: 16px; font-weight: bold; color: #d32f2f; margin: 0 0 8px 0; padding: 0; line-height: 1.2;">
-                        Reaction is faster than detection limit
-                    </div>
-                    <div style="font-size: 14px; color: #666; margin: 0; padding: 0; line-height: 1.3;">
-                        Displayed rate may be unreliable
-                    </div>
-                </div>`;
+            if (t.length === 0 && ct.length === 0) {
+                return `<div style="width:${width}px;height:${height}px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial,sans-serif;text-align:center;">
+                    <div style="font-size:15px;font-weight:bold;color:#333;margin-bottom:6px;">${label}</div>
+                    <div style="font-size:12px;color:#666;padding:0 12px;">No timed wells to plot.</div></div>`;
             }
-            
-            let slope, intercept, lineStartX, lineEndX, lineStartY, lineEndY;
-            let maxOneOverA, minOneOverA;
-            
-            if (hasTimeVariation) {
-                // Calculate line of best fit only if there's time variation
-                const n = times.length;
-                const sumX = times.reduce((sum, t) => sum + t, 0);
-                const sumY = oneOverA.reduce((sum, y) => sum + y, 0);
-                const sumXY = times.reduce((sum, t, i) => sum + t * oneOverA[i], 0);
-                const sumXX = times.reduce((sum, t) => sum + t * t, 0);
-                
-                slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-                intercept = (sumY - slope * sumX) / n;
-                
-                // Calculate line endpoints
-                lineStartX = minTime;
-                lineEndX = maxTime;
-                lineStartY = slope * lineStartX + intercept;
-                lineEndY = slope * lineEndX + intercept;
-                
-                // Calculate scales including both data and line of best fit
-                maxOneOverA = Math.max(...oneOverA, lineStartY, lineEndY);
-                minOneOverA = Math.min(...oneOverA, lineStartY, lineEndY);
-            } else {
-                // No time variation - just use data points for scaling
-                maxOneOverA = Math.max(...oneOverA);
-                minOneOverA = Math.min(...oneOverA);
-                
-                // Add some padding to the scale for better visualization
-                const range = maxOneOverA - minOneOverA;
-                const padding = range > 0 ? range * 0.1 : 0.1; // 10% padding or 0.1 if no variation
-                maxOneOverA += padding;
-                minOneOverA -= padding;
-            }
-            
-            // Create scale functions
-            const xScale = hasTimeVariation ? 
-                (x) => ((x - minTime) / (maxTime - minTime)) * plotWidth :
-                (x) => plotWidth / 2; // Center points when no time variation
-            const yScale = (y) => plotHeight - ((y - minOneOverA) / (maxOneOverA - minOneOverA)) * plotHeight;
-            
-            // Create SVG
+            const margin = { top: 26, right: 16, bottom: 40, left: 70 };
+            const pw = width - margin.left - margin.right, ph = height - margin.top - margin.bottom;
+            const xs = t.concat(ct), ys = y.concat(cy);
+            const xMax = Math.max(...xs, 1) * 1.08, yMax = Math.max(...ys, 1) * 1.15;
+            const X = v => (v / xMax) * pw, Y = v => ph - (v / yMax) * ph;
             let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-            
-            // Add background
             svg += `<rect width="${width}" height="${height}" fill="white"/>`;
-            
-            // Create main plot group
+            svg += `<text x="${margin.left}" y="16" font-size="12" font-weight="bold" fill="#333">${headline}</text>`;
             svg += `<g transform="translate(${margin.left}, ${margin.top})">`;
-            
-            // Draw grid lines
-            const xTicks = 5;
-            const yTicks = 4;
-            
-            for (let i = 0; i <= xTicks; i++) {
-                const x = (i / xTicks) * plotWidth;
-                svg += `<line x1="${x}" y1="0" x2="${x}" y2="${plotHeight}" stroke="#e0e0e0" stroke-width="0.5"/>`;
-                
-                // X-axis labels
-                if (hasTimeVariation) {
-                    const xValue = minTime + (i / xTicks) * (maxTime - minTime);
-                    svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${xValue.toFixed(1)}</text>`;
-                } else {
-                    // For no time variation, just show the single time value
-                    if (i === Math.floor(xTicks / 2)) { // Only show label in the middle
-                        svg += `<text x="${x}" y="${plotHeight + 20}" text-anchor="middle" font-size="10" fill="#666">${minTime.toFixed(1)}</text>`;
-                    }
-                }
+            for (let i = 0; i <= 4; i++) {
+                const gx = (i / 4) * pw, gy = (i / 4) * ph;
+                svg += `<line x1="${gx}" y1="0" x2="${gx}" y2="${ph}" stroke="#eee" stroke-width="0.5"/>`;
+                svg += `<line x1="0" y1="${gy}" x2="${pw}" y2="${gy}" stroke="#eee" stroke-width="0.5"/>`;
+                svg += `<text x="${gx}" y="${ph + 15}" text-anchor="middle" font-size="10" fill="#666">${Math.round((i / 4) * xMax)}</text>`;
+                svg += `<text x="-6" y="${ph - gy + 3}" text-anchor="end" font-size="10" fill="#666">${Math.round((i / 4) * yMax)}</text>`;
             }
-            
-            for (let i = 0; i <= yTicks; i++) {
-                const y = (i / yTicks) * plotHeight;
-                svg += `<line x1="0" y1="${plotHeight - y}" x2="${plotWidth}" y2="${plotHeight - y}" stroke="#e0e0e0" stroke-width="0.5"/>`;
-                
-                // Y-axis labels
-                const yValue = minOneOverA + (i / yTicks) * (maxOneOverA - minOneOverA);
-                svg += `<text x="-15" y="${plotHeight - y + 4}" text-anchor="end" font-size="10" fill="#666">${yValue.toFixed(2)}</text>`;
+            svg += `<line x1="0" y1="${ph}" x2="${pw}" y2="${ph}" stroke="#666"/><line x1="0" y1="0" x2="0" y2="${ph}" stroke="#666"/>`;
+            if (data.fit && data.rate_class === 'measurable') {
+                const ut = t.filter((_, i) => used[i]);
+                const x0 = 0, x1 = Math.max(...ut) * 1.05;
+                svg += `<line x1="${X(x0)}" y1="${Y(data.fit.slope * x0 + data.fit.intercept)}" x2="${X(x1)}" y2="${Y(data.fit.slope * x1 + data.fit.intercept)}" stroke="#333" stroke-width="1.5"/>`;
             }
-            
-            // Draw axes
-            svg += `<line x1="0" y1="${plotHeight}" x2="${plotWidth}" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
-            svg += `<line x1="0" y1="0" x2="0" y2="${plotHeight}" stroke="#666" stroke-width="1"/>`;
-            
-            // Draw line of best fit only if there's time variation
-            if (hasTimeVariation) {
-                svg += `<line x1="${xScale(lineStartX)}" y1="${yScale(lineStartY)}" 
-                             x2="${xScale(lineEndX)}" y2="${yScale(lineEndY)}" 
-                             stroke="black" stroke-width="2" opacity="0.9"/>`;
+            for (let i = 0; i < ct.length; i++) {
+                const px = X(ct[i]), py = Y(cy[i]);
+                svg += `<path d="M ${px} ${py - 5} L ${px - 4.5} ${py + 3.5} L ${px + 4.5} ${py + 3.5} Z" fill="#aaa"/>`;
             }
-            
-            // Draw scatter points
-            for (let i = 0; i < times.length; i++) {
-                const x = xScale(times[i]);
-                const y = yScale(oneOverA[i]);
-                
-                // Draw scatter point
-                svg += `<circle cx="${x}" cy="${y}" r="4" fill="#007acc"/>`;
+            for (let i = 0; i < t.length; i++) {
+                svg += used[i] ? `<circle cx="${X(t[i])}" cy="${Y(y[i])}" r="4" fill="#007acc"/>`
+                               : `<circle cx="${X(t[i])}" cy="${Y(y[i])}" r="4" fill="white" stroke="#007acc" stroke-width="1.2"/>`;
             }
-            
-            // Add axis labels
-            svg += `<text x="${plotWidth/2}" y="${plotHeight + 35}" text-anchor="middle" font-size="12" fill="#333">Time (min)</text>`;
-            svg += `<text x="-65" y="${plotHeight/2}" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90, -65, ${plotHeight/2})">1/[A] (M⁻¹)</text>`;
-            
+            svg += `<text x="${pw / 2}" y="${ph + 32}" text-anchor="middle" font-size="12" fill="#333">t₁/₂ (min)</text>`;
+            svg += `<text x="-52" y="${ph / 2}" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90, -52, ${ph / 2})">1/[A]₀ (M⁻¹)</text>`;
             svg += '</g></svg>';
-            
             return svg;
         }
         
@@ -1751,7 +1676,7 @@
                     <div class="sidebar-column-headers">
                         <div>Acid Chloride</div>
                         <div>Amine</div>
-                        <div>Rate (M⁻¹ · min⁻¹)</div>
+                        <div><i>k</i> (M⁻¹ min⁻¹)</div>
                     </div>
                     <div class="reaction-grid">
             `;
@@ -1771,8 +1696,8 @@
                         </div>
                         <div class="reaction-column">
                             <div class="rate-container">
-                                <div class="rate-value">${cellData.reactionRate !== null ? Math.round(cellData.reactionRate) : 'N/A'}</div>
-                                ${cellData.reactionRate !== null ? `
+                                <div class="rate-value">${formatRateValue(cellData.reactionRate)}</div>
+                                ${cellData.reactionRate !== undefined ? `
                                 <div class="chart-icon" 
                                      data-acid-name="${cellData.acidName}" 
                                      data-amine-name="${cellData.amineName}">
@@ -1890,7 +1815,7 @@
                     </div>
                     <div class="reaction-column">
                         <div class="rate-container">
-                            <div class="rate-value">${reactionRate !== null ? Math.round(reactionRate) : 'N/A'}</div>
+                            <div class="rate-value">${formatRateValue(reactionRate)}</div>
                         </div>
                     </div>
                 </div>
@@ -2210,6 +2135,7 @@
         function showScalebarIndicator(reactionRate) {
             const indicator = document.getElementById('scalebar-indicator');
             if (!indicator || !heatmapData) return;
+            if (!isRateConstant(reactionRate)) { hideScalebarIndicator(); return; }
             
             const linthresh = 10;
             
@@ -2269,6 +2195,7 @@
         function addSelectedScalebarIndicator(acidName, amineName, reactionRate, color) {
             const scalebarContainer = document.getElementById('scalebar-gradient');
             if (!scalebarContainer || !heatmapData) return;
+            if (!isRateConstant(reactionRate)) return;
             
             const cellKey = getCellKey(acidName, amineName);
             

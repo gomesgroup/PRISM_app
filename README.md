@@ -4,7 +4,7 @@ A web application for visualizing amide coupling reactions with four integrated 
 - **Landing** - Animated Game of Life background
 - **Menu** - Navigation hub for selecting experiments or data
 - **Experiment** - 3D reactor visualization with interactive controls
-- **Data** - Interactive heatmap for exploring reaction rates
+- **Data** - Interactive heatmap of PRISM rate constants (1.5× hydrolysis control); data built by `heatmap/build_data.py` from https://github.com/gomesgroup/PRISM
 
 ## Running the Application
 

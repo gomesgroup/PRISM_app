@@ -1,6 +1,6 @@
 # Interactive Chemical Reaction Rates Heatmap
 
-A Flask web application that displays an interactive heatmap visualization of chemical reaction rates data from `sorted_final_rates.csv`.
+Interactive heatmap of PRISM rate constants, served at `/prism/data` by the top-level `app.py`. (`heatmap/app.py` is an older standalone version and is not used by the site.)
 
 ## Features
 
@@ -40,10 +40,25 @@ A Flask web application that displays an interactive heatmap visualization of ch
 
 ## Data
 
-The application reads data from `data/sorted_final_rates.csv`, which contains:
-- Rows: Different chemical compounds
-- Columns: Different amines
-- Values: Reaction rate measurements
+The page reads four files in `data/`, built from the PRISM repository
+(https://github.com/gomesgroup/PRISM) by `build_data.py`:
+
+| file | contents |
+|---|---|
+| `rate_constants.csv` | rate constant *k* (M⁻¹ min⁻¹) for each acyl chloride × amine pair; blank if not measurable |
+| `reaction_classes.csv` | class of each pair: measurable, instant, un-reactive or undetermined |
+| `rate_plots.json` | for each pair: 1/[A]₀ against t₁/₂ for every well, whether the well was used in the fit, the no-amine control, the fitted line, the class and its note |
+| `acids_smiles.csv`, `amines_smiles.csv` | SMILES for the structure pop-ups |
+
+Rate constants come from the per-well hydrolysis control (1.5×): a well is used only if the
+no-amine control is at least 1.5× slower than the reaction at the same concentration, and *k*
+is the slope of 1/[A]₀ against t₁/₂ over those wells. Pairs without a measured *k* are grey.
+
+To rebuild after the PRISM data change:
+
+```bash
+python heatmap/build_data.py --prism <path to a clone of gomesgroup/PRISM>
+```
 
 ## Technical Details
 

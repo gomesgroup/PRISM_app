@@ -31,4 +31,6 @@ triphenylmethanamine,NC(c1ccccc1)(c2ccccc2)c3ccccc3
 "tertbutyl-3,5-dimethylpiperazin-1-carboxylate",CC1CN(C(OC(C)(C)C)=O)CC(C)N1
 3-anilinopropionitrile,N#CCCNc1ccccc1
 2-fluoroaniline,Nc1ccccc1F
+1-Boc-4-cyclopropylaminopiperidine,O=C(N1CCC(NC2CC2)CC1)OC(C)(C)C
 3-methoxyaniline,COc1cccc(N)c1
+4-aminobenzophenone,Nc1ccc(cc1)C(=O)c2ccccc2
