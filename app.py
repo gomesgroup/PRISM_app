@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.utils
+import plotly.colors
 import numpy as np
 
 app = Flask(__name__)
@@ -218,31 +219,37 @@ def get_heatmap_data():
         # Transform these tick values using symlog - these will be the tick positions
         transformed_ticks = [symlog_transform(np.array([t]), linthresh)[0] for t in valid_ticks]
         
-        # Create the heatmap
+        # One heatmap layer. Measured k: Cividis (blue -> yellow) on the symlog scale.
+        # Pairs without a measured k get a value just below that range, drawn grey;
+        # their customdata is the class name, so a click shows the class.
+        not_measured = (classes.values != 'measurable') & (classes.values != '')
+        lo, hi = np.nanmin(z_normalized), np.nanmax(z_normalized)
+        grey_value = lo - 0.04 * (hi - lo)
+        z_plot = np.where(not_measured, grey_value, z_normalized)
+        f = (lo - grey_value) / (hi - grey_value)
+        cividis = plotly.colors.sequential.Cividis
+        colorscale = [[0.0, '#d4d4d4'], [f * 0.999, '#d4d4d4']] + [
+            [f + (1 - f) * i / (len(cividis) - 1), c] for i, c in enumerate(cividis)]
+        custom = np.where(not_measured, classes.values,
+                          np.where(np.isnan(z_data), None, z_data)).tolist()
+        custom = [[v if isinstance(v, str) else (None if v is None else float(v)) for v in row]
+                  for row in custom]
         fig = go.Figure(data=go.Heatmap(
-            z=z_normalized,
+            z=np.where(np.isnan(z_plot), None, z_plot).tolist(),
             x=df.columns.tolist(),
             y=df.index.tolist(),
-            colorscale='Cividis',
+            colorscale=colorscale,
+            zmin=grey_value, zmax=hi,
             hovertemplate='<b>Acid Chloride:</b> %{y}<br>' +
                          '<b>Amine:</b> %{x}<br>' +
-                         '<b>Rate:</b> %{customdata:.2f} (M⁻¹ · min⁻¹)<br>' +
+                         '<b>k:</b> %{customdata} (M⁻¹ min⁻¹)<br>' +
                          '<extra></extra>',
-            customdata=np.where(np.isnan(z_data), None, z_data).tolist(),  # original k for hover
+            customdata=custom,  # k for measured pairs, class name otherwise
             showscale=False,  # Hide the colorbar/scale
             # Add grid lines like in the notebook
             xgap=1,
             ygap=1
         ))
-        # Pairs without a measured rate constant: one grey layer; customdata holds the class.
-        not_measured = (classes.values != 'measurable') & (classes.values != '')
-        fig.add_trace(go.Heatmap(
-            z=np.where(not_measured, 1.0, np.nan).tolist(),
-            x=df.columns.tolist(),
-            y=df.index.tolist(),
-            colorscale=[[0, '#d4d4d4'], [1, '#d4d4d4']],
-            customdata=np.where(not_measured, classes.values, None).tolist(),
-            showscale=False, hoverinfo='none', xgap=1, ygap=1))
         
         # Update layout for square heatmap
         fig.update_layout(
