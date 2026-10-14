@@ -4,7 +4,6 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.utils
-import plotly.colors
 import numpy as np
 
 app = Flask(__name__)
@@ -219,32 +218,23 @@ def get_heatmap_data():
         # Transform these tick values using symlog - these will be the tick positions
         transformed_ticks = [symlog_transform(np.array([t]), linthresh)[0] for t in valid_ticks]
         
-        # One heatmap layer. Measured k: Cividis (blue -> yellow) on the symlog scale.
-        # Pairs without a measured k get a value just below that range, drawn grey;
-        # their customdata is the class name, so a click shows the class.
+        # Create the heatmap (original colouring: Plotly's Cividis on the symlog scale).
+        # Pairs without a measured k have no value and are left blank; their customdata
+        # is the class name, so a click shows the class.
         not_measured = (classes.values != 'measurable') & (classes.values != '')
-        lo, hi = np.nanmin(z_normalized), np.nanmax(z_normalized)
-        grey_value = lo - 0.04 * (hi - lo)
-        z_plot = np.where(not_measured, grey_value, z_normalized)
-        f = (lo - grey_value) / (hi - grey_value)
-        cividis = plotly.colors.sequential.Cividis
-        colorscale = [[0.0, '#d4d4d4'], [f * 0.999, '#d4d4d4']] + [
-            [f + (1 - f) * i / (len(cividis) - 1), c] for i, c in enumerate(cividis)]
-        custom = np.where(not_measured, classes.values,
-                          np.where(np.isnan(z_data), None, z_data)).tolist()
-        custom = [[v if isinstance(v, str) else (None if v is None else float(v)) for v in row]
-                  for row in custom]
+        custom = [[c if nm else (None if np.isnan(v) else float(v))
+                   for v, c, nm in zip(zr, cr, nr)]
+                  for zr, cr, nr in zip(z_data, classes.values, not_measured)]
         fig = go.Figure(data=go.Heatmap(
-            z=np.where(np.isnan(z_plot), None, z_plot).tolist(),
+            z=z_normalized,
             x=df.columns.tolist(),
             y=df.index.tolist(),
-            colorscale=colorscale,
-            zmin=grey_value, zmax=hi,
+            colorscale='Cividis',
             hovertemplate='<b>Acid Chloride:</b> %{y}<br>' +
                          '<b>Amine:</b> %{x}<br>' +
-                         '<b>k:</b> %{customdata} (M⁻¹ min⁻¹)<br>' +
+                         '<b>Rate:</b> %{customdata:.2f} (M⁻¹ · min⁻¹)<br>' +
                          '<extra></extra>',
-            customdata=custom,  # k for measured pairs, class name otherwise
+            customdata=custom,
             showscale=False,  # Hide the colorbar/scale
             # Add grid lines like in the notebook
             xgap=1,
