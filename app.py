@@ -226,7 +226,9 @@ def get_heatmap_data():
                    for v, c, nm in zip(zr, cr, nr)]
                   for zr, cr, nr in zip(z_data, classes.values, not_measured)]
         fig = go.Figure(data=go.Heatmap(
-            z=z_normalized,
+            # plain list: newer Plotly (6.x) would otherwise send a binary array that
+            # the page's Plotly.js 2.26 cannot read
+            z=[[None if np.isnan(v) else float(v) for v in row] for row in z_normalized],
             x=df.columns.tolist(),
             y=df.index.tolist(),
             colorscale='Cividis',
