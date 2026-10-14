@@ -594,7 +594,7 @@
         
         .rate-plot-chart {
             width: 340px;
-            height: 200px;
+            height: 232px;
         }
         
         .loading-rate-plot {
@@ -1200,7 +1200,7 @@
         }
 
         // Function to create SVG rate plot
-        function createRatePlotSVG(data, width = 340, height = 200) {
+        function createRatePlotSVG(data, width = 340, height = 232) {
             // 1/[A]0 against t1/2 for each well. Filled: wells used in the fit (passed the
             // per-well hydrolysis control); open: wells that did not; grey triangles: the
             // no-amine control at the same concentrations. Line: the fit (slope = k).
@@ -1218,7 +1218,7 @@
                     <div style="font-size:15px;font-weight:bold;color:#333;margin-bottom:6px;">${label}</div>
                     <div style="font-size:12px;color:#666;padding:0 12px;">No timed wells to plot.</div></div>`;
             }
-            const margin = { top: 26, right: 16, bottom: 40, left: 70 };
+            const margin = { top: 26, right: 16, bottom: 72, left: 70 };
             const pw = width - margin.left - margin.right, ph = height - margin.top - margin.bottom;
             const xs = t.concat(ct), ys = y.concat(cy);
             const xMax = Math.max(...xs, 1) * 1.08, yMax = Math.max(...ys, 1) * 1.15;
@@ -1250,6 +1250,12 @@
             }
             svg += `<text x="${pw / 2}" y="${ph + 32}" text-anchor="middle" font-size="12" fill="#333">t₁/₂ (min)</text>`;
             svg += `<text x="-52" y="${ph / 2}" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90, -52, ${ph / 2})">1/[A]₀ (M⁻¹)</text>`;
+            // Legend
+            const ly = ph + 50, lx = -60;
+            svg += `<circle cx="${lx + 4}" cy="${ly}" r="4" fill="#007acc"/><text x="${lx + 12}" y="${ly + 3.5}" font-size="10" fill="#444">fitted well</text>`;
+            svg += `<circle cx="${lx + 74}" cy="${ly}" r="4" fill="white" stroke="#007acc" stroke-width="1.2"/><text x="${lx + 82}" y="${ly + 3.5}" font-size="10" fill="#444">excluded well</text>`;
+            svg += `<path d="M ${lx + 160} ${ly - 5} L ${lx + 155.5} ${ly + 3.5} L ${lx + 164.5} ${ly + 3.5} Z" fill="#aaa"/><text x="${lx + 170}" y="${ly + 3.5}" font-size="10" fill="#444">no-amine control</text>`;
+            svg += `<line x1="${lx}" y1="${ly + 15}" x2="${lx + 9}" y2="${ly + 15}" stroke="#333" stroke-width="1.5"/><text x="${lx + 12}" y="${ly + 18.5}" font-size="10" fill="#444">fit (slope = k)</text>`;
             svg += '</g></svg>';
             return svg;
         }
@@ -1282,7 +1288,7 @@
             // Ensure tooltip stays within viewport
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
-            const tooltipRect = { width: 360, height: 210 }; // updated dimensions for wider plot
+            const tooltipRect = { width: 360, height: 242 }; // plot plus legend
             
             if (parseInt(tooltip.style.left) + tooltipRect.width > viewportWidth) {
                 tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
