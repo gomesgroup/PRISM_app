@@ -86,6 +86,12 @@ def main():
             "control_inv_A0": (ctl.stored_ordinate_2_over_A0 / 2).tolist(),
             "fit": fit}
 
+    # Same ordering as the original heatmap (heatmap_rates.ipynb): amines by median k,
+    # ascending; acyl chlorides by median k, descending (medians over measured pairs).
+    cols = k.median().sort_values().index
+    rows = k.median(axis=1).sort_values(ascending=False).index
+    k, cls = k.loc[rows, cols], cls.loc[rows, cols]
+
     a.out.mkdir(parents=True, exist_ok=True)
     k.to_csv(a.out / "rate_constants.csv")
     cls.to_csv(a.out / "reaction_classes.csv")
