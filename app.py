@@ -243,6 +243,13 @@ def get_heatmap_data():
             ygap=1
         ))
         
+        # Un-reactive pairs: grey squares drawn below the heatmap, at cells with no value,
+        # so the heatmap colours are unchanged.
+        grey_cells = [dict(type='rect', xref='x', yref='y', layer='below',
+                           x0=j - 0.47, x1=j + 0.47, y0=i - 0.47, y1=i + 0.47,
+                           fillcolor='#c8c8c8', line=dict(width=0))
+                      for i, j in zip(*np.where(classes.values == 'un-reactive'))]
+
         # Update layout for square heatmap
         fig.update_layout(
             xaxis=dict(
@@ -269,6 +276,8 @@ def get_heatmap_data():
             font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
         )
         
+        fig.layout.shapes = grey_cells
+
         # Convert to JSON
         graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
         return jsonify(graphJSON)
