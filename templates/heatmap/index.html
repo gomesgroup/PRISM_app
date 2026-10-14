@@ -2543,7 +2543,6 @@
                 plotData.layout.plot_bgcolor = 'rgba(0,0,0,0)';
                 
                 // Store heatmap data and labels for highlighting
-                // the colour layer (rate constants); a grey layer for un-reactive pairs sits below it
                 heatmapData = plotData.data.find(t => t.name === 'k') || plotData.data[0];
                 heatmapLabels.x = heatmapData.x || [];
                 heatmapLabels.y = heatmapData.y || [];

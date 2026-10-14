@@ -219,16 +219,21 @@ def get_heatmap_data():
         transformed_ticks = [symlog_transform(np.array([t]), linthresh)[0] for t in valid_ticks]
         
         # Create the heatmap (original colouring: Plotly's Cividis on the symlog scale).
-        # Pairs without a measured k have no value and are left blank; their customdata
-        # is the class name, so a click shows the class.
+        # Pairs without a measured k carry their class name as customdata, so a click shows it.
         not_measured = (classes.values != 'measurable') & (classes.values != '')
+        # Instant pairs at the fast end of the scale (highest measured k, yellow), un-reactive
+        # pairs at the slow end (lowest measured k, dark blue), undetermined left blank (white).
+        # Using exactly the measured extremes keeps the colour range, and the measured colours.
+        lo, hi = np.nanmin(z_normalized), np.nanmax(z_normalized)
+        z_plot = np.where(classes.values == 'instant', hi,
+                          np.where(classes.values == 'un-reactive', lo, z_normalized))
         custom = [[c if nm else (None if np.isnan(v) else float(v))
                    for v, c, nm in zip(zr, cr, nr)]
                   for zr, cr, nr in zip(z_data, classes.values, not_measured)]
         fig = go.Figure(data=go.Heatmap(
             # plain list: newer Plotly (6.x) would otherwise send a binary array that
             # the page's Plotly.js 2.26 cannot read
-            z=[[None if np.isnan(v) else float(v) for v in row] for row in z_normalized],
+            z=[[None if np.isnan(v) else float(v) for v in row] for row in z_plot],
             x=df.columns.tolist(),
             y=df.index.tolist(),
             colorscale='Cividis',
@@ -244,16 +249,6 @@ def get_heatmap_data():
             ygap=1
         ))
         
-        # Un-reactive pairs: a grey heatmap layer underneath the colour layer, on the
-        # same cells; it takes no hover or clicks, so the colour layer handles them.
-        unreactive = classes.values == 'un-reactive'
-        grey = go.Heatmap(
-            z=[[1.0 if u else None for u in row] for row in unreactive],
-            x=df.columns.tolist(), y=df.index.tolist(), name='un-reactive',
-            colorscale=[[0, '#c8c8c8'], [1, '#c8c8c8']], showscale=False,
-            hoverinfo='skip', xgap=1, ygap=1)
-        fig = go.Figure(data=[grey] + list(fig.data))
-
         # Update layout for square heatmap
         fig.update_layout(
             xaxis=dict(
