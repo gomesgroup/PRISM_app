@@ -237,18 +237,22 @@ def get_heatmap_data():
                          '<b>Rate:</b> %{customdata:.2f} (M⁻¹ · min⁻¹)<br>' +
                          '<extra></extra>',
             customdata=custom,
+            name='k',
             showscale=False,  # Hide the colorbar/scale
             # Add grid lines like in the notebook
             xgap=1,
             ygap=1
         ))
         
-        # Un-reactive pairs: grey squares drawn below the heatmap, at cells with no value,
-        # so the heatmap colours are unchanged.
-        grey_cells = [dict(type='rect', xref='x', yref='y', layer='below',
-                           x0=j - 0.47, x1=j + 0.47, y0=i - 0.47, y1=i + 0.47,
-                           fillcolor='#c8c8c8', line=dict(width=0))
-                      for i, j in zip(*np.where(classes.values == 'un-reactive'))]
+        # Un-reactive pairs: a grey heatmap layer underneath the colour layer, on the
+        # same cells; it takes no hover or clicks, so the colour layer handles them.
+        unreactive = classes.values == 'un-reactive'
+        grey = go.Heatmap(
+            z=[[1.0 if u else None for u in row] for row in unreactive],
+            x=df.columns.tolist(), y=df.index.tolist(), name='un-reactive',
+            colorscale=[[0, '#c8c8c8'], [1, '#c8c8c8']], showscale=False,
+            hoverinfo='skip', xgap=1, ygap=1)
+        fig = go.Figure(data=[grey] + list(fig.data))
 
         # Update layout for square heatmap
         fig.update_layout(
@@ -276,8 +280,6 @@ def get_heatmap_data():
             font=dict(family='Avenir, Avenir Next, -apple-system, BlinkMacSystemFont, Helvetica Neue, sans-serif')
         )
         
-        fig.layout.shapes = grey_cells
-
         # Convert to JSON
         graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
         return jsonify(graphJSON)

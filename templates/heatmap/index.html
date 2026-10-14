@@ -2543,7 +2543,8 @@
                 plotData.layout.plot_bgcolor = 'rgba(0,0,0,0)';
                 
                 // Store heatmap data and labels for highlighting
-                heatmapData = plotData.data[0];
+                // the colour layer (rate constants); a grey layer for un-reactive pairs sits below it
+                heatmapData = plotData.data.find(t => t.name === 'k') || plotData.data[0];
                 heatmapLabels.x = heatmapData.x || [];
                 heatmapLabels.y = heatmapData.y || [];
                 
@@ -2551,8 +2552,7 @@
                 updateScalebar(heatmapData);
                 
                 // Disable cell tooltips - we only want our highlighting effect
-                plotData.data[0].hovertemplate = '';
-                plotData.data[0].hoverinfo = 'none';
+                plotData.data.forEach(t => { if (t.name !== 'un-reactive') { t.hovertemplate = ''; t.hoverinfo = 'none'; } });
                 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('heatmap').style.display = 'block';
