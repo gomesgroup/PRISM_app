@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "PRISM web application"
+type: software
+authors:
+  - family-names: Baumer
+    given-names: Mitchell
+    affiliation: Carnegie Mellon University
+  - family-names: Gallegos
+    given-names: Liliana C.
+    affiliation: Carnegie Mellon University
+  - family-names: Anstine
+    given-names: Dylan M.
+    affiliation: Carnegie Mellon University
+  - family-names: Kubaney
+    given-names: Andrew
+    affiliation: Carnegie Mellon University
+  - family-names: Regio
+    given-names: Jose Emilio A.
+    affiliation: Carnegie Mellon University
+  - family-names: Isayev
+    given-names: Olexandr
+    affiliation: Carnegie Mellon University
+  - family-names: Bernhard
+    given-names: Stefan
+    affiliation: Carnegie Mellon University
+  - family-names: Gomes
+    given-names: Gabe
+    affiliation: Carnegie Mellon University
+version: 1.0.0
+date-released: 2026-11-03
+license: MIT
+repository-code: "https://github.com/gomesgroup/PRISM_app"
+url: "https://gomes.andrew.cmu.edu/prism/"
+abstract: "Web application presenting the PRISM reactor and the PRISM amide-coupling rate data for interactive exploration."
+keywords:
+  - reaction kinetics
+  - web application
+  - amide coupling
