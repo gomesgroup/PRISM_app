@@ -379,11 +379,11 @@
             <h1 class="paper-title" id="paperTitle">Loading...</h1>
             <p class="authors-line" id="authorsList">Loading authors...</p>
             <div class="abstract-section">
-                <h2 class="abstract-header">Abstract</h2>
-                <p class="abstract-text" id="abstractText">Loading abstract...</p>
+                <h2 class="abstract-header">Study summary</h2>
+                <p class="abstract-text" id="abstractText">Loading study summary...</p>
             </div>
             <div class="button-container">
-                <a href="#" class="paper-button btn-read-paper">Read the paper</a>
+                <a href="https://doi.org/10.1039/D6DD00225K" class="paper-button btn-read-paper">Read the paper</a>
                 <a href="/prism/menu" class="paper-button btn-check-webapp">Check the webapp</a>
             </div>
         </div>
@@ -677,7 +677,7 @@
                 console.error('Error loading paper data:', error);
                 document.getElementById('paperTitle').textContent = 'Error loading paper data';
                 document.getElementById('authorsList').textContent = 'Error loading authors';
-                document.getElementById('abstractText').textContent = 'Error loading abstract';
+                document.getElementById('abstractText').textContent = 'Error loading study summary';
             }
         }
     </script>
