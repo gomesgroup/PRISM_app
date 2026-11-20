@@ -664,6 +664,10 @@
                         tooltip.textContent = parts.slice(0, 2).join(',').trim();
                     }
                     
+                    if (author.equal_contribution || author.corresponding_author) {
+                        tooltip.appendChild(document.createElement('br'));
+                        tooltip.append(author.corresponding_author ? 'Corresponding author' : 'Equal contributor');
+                    }
                     authorSpan.appendChild(tooltip);
                     authorsList.appendChild(authorSpan);
                     

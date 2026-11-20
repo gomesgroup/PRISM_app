@@ -8,13 +8,15 @@
             "name": "Mitchell Baumer",
             "affiliations": [
                 "Department of Chemistry, Carnegie Mellon University"
-            ]
+            ],
+            "equal_contribution": true
         },
         {
             "name": "Liliana C. Gallegos",
             "affiliations": [
                 "Department of Chemistry, Carnegie Mellon University"
-            ]
+            ],
+            "equal_contribution": true
         },
         {
             "name": "Dylan M. Anstine",
@@ -55,7 +57,8 @@
                 "Wilton E. Scott Institute for Energy Innovation, Carnegie Mellon University",
                 "Department of Chemical Engineering, Carnegie Mellon University",
                 "Machine Learning Department, Carnegie Mellon University"
-            ]
+            ],
+            "corresponding_author": true
         }
     ],
     "abstract": "PRISM uses machine vision to track color changes in a 96-well plate and measure amide-coupling kinetics. The authors screened 1,085 reactant pairs and obtained 363 measurable rate constants. They used these measurements to evaluate machine-learning models of amide-coupling reactivity."
