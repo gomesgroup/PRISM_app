@@ -6,29 +6,18 @@ A web application for visualizing amide coupling reactions with four integrated 
 - **Experiment** - 3D reactor visualization with interactive controls
 - **Data** - Interactive heatmap of PRISM rate constants (1.5× hydrolysis control); data built by `heatmap/build_data.py` from https://github.com/gomesgroup/PRISM
 
+The repository contains the published dataset of 1,085 amine–acyl chloride pairs, including 363 measured rate constants. The [hosted viewer](https://gomes.andrew.cmu.edu/prism/) preserves an earlier dataset and links to the [publication archive](https://doi.org/10.5281/zenodo.23924416).
+
 ## Running the Application
 
+In a Python 3.11 environment, run these commands from the repository root:
+
 ```bash
-python app.py
+python -m pip install -r requirements.txt
+python -m flask --app app run --host 127.0.0.1 --port 8001
 ```
 
-The server starts on `http://0.0.0.0:8000`
-
-## Navigation
-
-- `/` - Landing page
-- `/menu` - Navigation menu
-- `/experiment` - 3D reactor visualization
-- `/data` - Heatmap analysis
-
-## Dependencies
-
-```
-Flask
-pandas
-plotly
-numpy
-```
+Open [the local landing page](http://127.0.0.1:8001/prism/) in your browser. The [menu](http://127.0.0.1:8001/prism/menu) links to the [reactor](http://127.0.0.1:8001/prism/experiment) and the [heatmap](http://127.0.0.1:8001/prism/data).
 
 ## Citation
 
