@@ -10,26 +10,9 @@ Interactive heatmap of PRISM rate constants, served at `/prism/data` by the top-
 - **Zoom & Pan**: Navigate through the heatmap with mouse controls
 - **Professional Styling**: Clean interface with Bootstrap and custom CSS
 
-## Installation
+## Running the integrated heatmap
 
-1. **Clone or download this repository**
-
-2. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Running the Application
-
-1. **Start the Flask development server**:
-   ```bash
-   python app.py
-   ```
-
-2. **Open your web browser** and go to:
-   ```
-   http://localhost:5000
-   ```
+Follow the [repository's local setup instructions](../README.md#running-the-application) from the repository root. Open the [local heatmap](http://127.0.0.1:8001/prism/data) to explore the publication dataset.
 
 ## Usage
 
@@ -68,15 +51,8 @@ python heatmap/build_data.py --prism <path to a clone of gomesgroup/PRISM>
 - **Data Processing**: Pandas
 - **Interactive Features**: Plotly hover templates and zoom/pan controls
 
-## API Endpoints
+## Integrated API endpoints
 
-- `/` - Main application page
-- `/api/heatmap-data` - Returns heatmap data as JSON
-- `/api/data-info` - Returns dataset statistics and metadata
-
-## Dependencies
-
-- Flask 2.3.3
-- pandas 2.0.3
-- plotly 5.17.0
-- numpy 1.24.3 
+- `/prism/data` – heatmap page
+- `/prism/api/heatmap-data` – heatmap data
+- `/prism/api/data-info` – dataset statistics and metadata

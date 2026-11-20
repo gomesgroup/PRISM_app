@@ -1,4 +1,6 @@
-# Deployment Configuration for gomes.andrew.cmu.edu/prism
+# Historical deployment notes for the earlier hosted viewer
+
+These notes record the original integration of the `/prism/` routes.
 
 ## Changes Made
 
@@ -48,31 +50,6 @@
 - Updated heatmap API: `/api/heatmap-data` → `/prism/api/heatmap-data`
 - Updated rate plot API: `/api/rate-plot-data` → `/prism/api/rate-plot-data`
 
-## Deployment Instructions
+## Running this repository locally
 
-1. **Environment Setup:**
-   ```bash
-   conda activate prism
-   ```
-
-2. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the Application:**
-   ```bash
-   python app.py
-   ```
-
-4. **Access URLs:**
-   - Local: `http://0.0.0.0:8001/prism/`
-   - Deployed: `https://gomes.andrew.cmu.edu/prism/`
-
-## Notes
-
-- The app is configured to run on port 8001 as required
-- All routes start with `/prism/` as required
-- The miniconda environment "prism" is available for use
-- Reference implementation: https://github.com/gomesgroup/iron-mind/tree/deployment/app
-
+Use the [local setup instructions](README.md#running-the-application) from the repository root. The [local heatmap](http://127.0.0.1:8001/prism/data) uses the dataset in this repository. The [hosted viewer](https://gomes.andrew.cmu.edu/prism/) serves an earlier data release.
